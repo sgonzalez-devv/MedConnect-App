@@ -1,5 +1,6 @@
 export interface Patient {
   id: string
+  clinicId: string
   nombre: string
   apellido: string
   email: string
@@ -16,6 +17,7 @@ export interface Patient {
 
 export interface Appointment {
   id: string
+  clinicId: string
   pacienteId: string
   paciente?: Patient
   fecha: string
@@ -30,6 +32,7 @@ export interface Appointment {
 
 export interface ConsultationNote {
   id: string
+  clinicId: string
   pacienteId: string
   citaId: string
   fecha: string
@@ -52,6 +55,7 @@ export interface Prescription {
 
 export interface MedicalAttachment {
   id: string
+  clinicId: string
   pacienteId: string
   tipo: "laboratorio" | "imagen" | "documento"
   nombre: string
@@ -150,4 +154,36 @@ export interface MedicalRecord {
   vacunas: Vaccine[]
   notasConsulta: ConsultationNote[]
   archivosAdjuntos: MedicalAttachment[]
+}
+
+// Clinic and Multi-Clinic Types
+export interface ClinicColorPalette {
+  id: string
+  presetName: 'teal' | 'blue' | 'indigo' | 'green' | 'purple'
+  customSecondaryHex?: string
+}
+
+export interface Clinic {
+  id: string
+  name: string
+  location: string
+  email: string
+  telefono: string
+  colorPalette: ClinicColorPalette
+}
+
+export interface ClinicGroup {
+  id: string
+  name: string
+  clinicIds: string[]
+  createdAt: string
+  ownerId: string
+}
+
+export interface GroupMetrics {
+  totalPatients: number
+  totalAppointments: number
+  appointmentsThisMonth: number
+  completedAppointmentsThisMonth: number
+  appointmentsByClinic: Record<string, number>
 }
