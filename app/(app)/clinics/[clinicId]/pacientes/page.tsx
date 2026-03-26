@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -39,26 +40,30 @@ import {
   List,
   AlertTriangle,
 } from "lucide-react"
-import { useClinicContext } from "@/hooks/use-clinic-context"
-import { getClinicPatients, getPatientAppointments } from "@/lib/mock-data"
+import { getClinicPatients, getPatientAppointments, clinics } from "@/lib/mock-data"
 import { formatDateShort, calculateAge } from "@/lib/date-utils"
+import { getClinicColors } from "@/lib/theme-utils"
 
 export default function ClinicPatientsPage() {
-  const { currentClinic, currentClinicId } = useClinicContext()
+  const params = useParams()
+  const clinicId = params.clinicId as string
+  const clinic = clinics.find((c) => c.id === clinicId)
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
 
-  if (!currentClinic || !currentClinicId) {
+  if (!clinic) {
     return (
       <div className="p-4 md:p-6">
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Seleccionando clínica...</p>
+          <p className="text-muted-foreground">Clínica no encontrada</p>
         </div>
       </div>
     )
   }
 
-  const allPatients = getClinicPatients(currentClinicId)
+  const clinicColors = getClinicColors(clinic.colorPalette.presetName)
+
+  const allPatients = getClinicPatients(clinicId)
 
   const filteredPatients = allPatients.filter((patient) => {
     const fullName = `${patient.nombre} ${patient.apellido}`.toLowerCase()
@@ -75,8 +80,8 @@ export default function ClinicPatientsPage() {
       <div className="p-4 md:p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Pacientes - {currentClinic.name}</h1>
+          <div className={`border-l-4 pl-4 ${clinicColors.borderL}`}>
+            <h1 className="text-2xl font-bold text-foreground">Pacientes - {clinic.name}</h1>
             <p className="text-muted-foreground">
               {allPatients.length} pacientes registrados en esta clínica
             </p>
@@ -84,7 +89,7 @@ export default function ClinicPatientsPage() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button className="btn-primary" asChild>
-                <Link href={`/clinics/${currentClinicId}/pacientes/nuevo`}>
+                <Link href={`/clinics/${clinicId}/pacientes/nuevo`}>
                   <Plus className="w-4 h-4 mr-2" />
                   Nuevo Paciente
                 </Link>
@@ -170,7 +175,7 @@ export default function ClinicPatientsPage() {
                         >
                           <TableCell>
                             <Link
-                              href={`/clinics/${currentClinicId}/pacientes/${patient.id}`}
+                              href={`/clinics/${clinicId}/pacientes/${patient.id}`}
                               className="flex items-center gap-3 group"
                             >
                               <Avatar className="h-10 w-10 ring-2 ring-transparent group-hover:ring-teal-200 transition-all duration-200">
@@ -231,13 +236,13 @@ export default function ClinicPatientsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem asChild className="cursor-pointer">
-                                  <Link href={`/clinics/${currentClinicId}/pacientes/${patient.id}`}>
-                                    Ver perfil completo
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild className="cursor-pointer">
-                                  <Link href={`/clinics/${currentClinicId}/calendario/nueva-cita?paciente=${patient.id}`}>
+                                 <DropdownMenuItem asChild className="cursor-pointer">
+                                   <Link href={`/clinics/${clinicId}/pacientes/${patient.id}`}>
+                                     Ver perfil completo
+                                   </Link>
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem asChild className="cursor-pointer">
+                                   <Link href={`/clinics/${clinicId}/calendario/nueva-cita?paciente=${patient.id}`}>
                                     Agendar nueva cita
                                   </Link>
                                 </DropdownMenuItem>
@@ -273,10 +278,10 @@ export default function ClinicPatientsPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <Link
-                            href={`/clinics/${currentClinicId}/pacientes/${patient.id}`}
-                            className="font-medium text-foreground hover:text-teal-700 transition-colors duration-200"
-                          >
+                           <Link
+                             href={`/clinics/${clinicId}/pacientes/${patient.id}`}
+                             className="font-medium text-foreground hover:text-teal-700 transition-colors duration-200"
+                           >
                             {patient.nombre} {patient.apellido}
                           </Link>
                           <p className="text-sm text-muted-foreground">
@@ -337,7 +342,7 @@ export default function ClinicPatientsPage() {
                         <TooltipContent>Total de citas en el historial</TooltipContent>
                       </Tooltip>
                       <Button variant="outline" size="sm" asChild className="hover:bg-teal-50 hover:text-teal-700 hover:border-teal-300 transition-all duration-200">
-                        <Link href={`/clinics/${currentClinicId}/pacientes/${patient.id}`}>
+                        <Link href={`/clinics/${clinicId}/pacientes/${patient.id}`}>
                           Ver perfil
                         </Link>
                       </Button>
@@ -361,12 +366,12 @@ export default function ClinicPatientsPage() {
               <p className="text-muted-foreground mb-4">
                 Intenta con otro término de búsqueda o registra un nuevo paciente
               </p>
-              <Button className="btn-primary" asChild>
-                <Link href={`/clinics/${currentClinicId}/pacientes/nuevo`}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Registrar Paciente
-                </Link>
-              </Button>
+               <Button className="btn-primary" asChild>
+                 <Link href={`/clinics/${clinicId}/pacientes/nuevo`}>
+                   <Plus className="w-4 h-4 mr-2" />
+                   Registrar Paciente
+                 </Link>
+               </Button>
             </CardContent>
           </Card>
         )}

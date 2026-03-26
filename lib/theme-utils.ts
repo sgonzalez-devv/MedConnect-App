@@ -51,3 +51,64 @@ export function getCSSVariablesAsReactStyle(
   const variables = generateClinicCSSVariables(palette)
   return variables as any as React.CSSProperties
 }
+
+/**
+ * Get Tailwind CSS classes for clinic colors based on preset name
+ * Returns an object with bg, text, border, and badge class properties
+ */
+export function getClinicColors(presetName: string): {
+  bg: string
+  text: string
+  border: string
+  badge: string
+  borderL: string
+} {
+  const colorMap: Record<
+    string,
+    {
+      bg: string
+      text: string
+      border: string
+      badge: string
+      borderL: string
+    }
+  > = {
+    teal: {
+      bg: 'bg-teal-50',
+      text: 'text-teal-700',
+      border: 'border-teal-200',
+      badge: 'bg-teal-200 text-teal-800',
+      borderL: 'border-l-teal-500',
+    },
+    blue: {
+      bg: 'bg-blue-50',
+      text: 'text-blue-700',
+      border: 'border-blue-200',
+      badge: 'bg-blue-200 text-blue-800',
+      borderL: 'border-l-blue-500',
+    },
+    indigo: {
+      bg: 'bg-indigo-50',
+      text: 'text-indigo-700',
+      border: 'border-indigo-200',
+      badge: 'bg-indigo-200 text-indigo-800',
+      borderL: 'border-l-indigo-500',
+    },
+    green: {
+      bg: 'bg-green-50',
+      text: 'text-green-700',
+      border: 'border-green-200',
+      badge: 'bg-green-200 text-green-800',
+      borderL: 'border-l-green-500',
+    },
+    purple: {
+      bg: 'bg-purple-50',
+      text: 'text-purple-700',
+      border: 'border-purple-200',
+      badge: 'bg-purple-200 text-purple-800',
+      borderL: 'border-l-purple-500',
+    },
+  }
+
+  return colorMap[presetName] || colorMap.teal
+}

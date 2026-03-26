@@ -66,6 +66,7 @@ export interface MedicalAttachment {
 
 export interface WhatsAppConversation {
   id: string
+  clinicId: string
   pacienteId: string
   paciente?: Patient
   mensajes: WhatsAppMessage[]
@@ -83,6 +84,7 @@ export interface WhatsAppMessage {
 
 export interface Notification {
   id: string
+  clinicId: string
   tipo: "cita" | "mensaje" | "recordatorio" | "sistema"
   titulo: string
   mensaje: string

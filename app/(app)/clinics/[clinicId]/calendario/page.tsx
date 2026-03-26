@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,9 +34,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useClinicContext } from "@/hooks/use-clinic-context"
-import { getClinicAppointments, getPatientById } from "@/lib/mock-data"
+import { getClinicAppointments, getPatientById, clinics } from "@/lib/mock-data"
 import { formatDateWithWeekday, formatDateShort } from "@/lib/date-utils"
+import { getClinicColors } from "@/lib/theme-utils"
 import type { Appointment, Patient } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
@@ -61,21 +62,24 @@ const MESES = [
 ]
 
 export default function ClinicCalendarPage() {
-  const { currentClinic, currentClinicId } = useClinicContext()
+  const params = useParams()
+  const clinicId = params.clinicId as string
+  const clinic = clinics.find((c) => c.id === clinicId)
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [view, setView] = useState<"day" | "week">("day")
 
-  if (!currentClinic || !currentClinicId) {
+  if (!clinic) {
     return (
       <div className="p-4 md:p-6">
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Seleccionando clínica...</p>
+          <p className="text-muted-foreground">Clínica no encontrada</p>
         </div>
       </div>
     )
   }
 
-  const appointmentsData = getClinicAppointments(currentClinicId)
+  const clinicColors = getClinicColors(clinic.colorPalette.presetName)
+  const appointmentsData = getClinicAppointments(clinicId)
   // Join appointments with patient data
   const allAppointments = appointmentsData
     .map((apt) => ({ ...apt, paciente: getPatientById(apt.pacienteId)! }))
@@ -165,14 +169,14 @@ export default function ClinicCalendarPage() {
       <div className="p-4 md:p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Calendario - {currentClinic.name}</h1>
+          <div className={`border-l-4 pl-4 ${clinicColors.borderL}`}>
+            <h1 className="text-2xl font-bold text-foreground">Calendario - {clinic.name}</h1>
             <p className="text-muted-foreground">Gestiona tus citas del día</p>
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button className="btn-secondary" asChild>
-                <Link href={`/clinics/${currentClinicId}/calendario/nueva-cita`}>
+                <Link href={`/clinics/${clinicId}/calendario/nueva-cita`}>
                   <Plus className="w-4 h-4 mr-2" />
                   Nueva Cita
                 </Link>
@@ -364,22 +368,22 @@ export default function ClinicCalendarPage() {
                   <p className="text-muted-foreground mb-6">
                     No hay citas para esta fecha. Puedes crear una nueva cita.
                   </p>
-                  <Button className="btn-secondary" asChild>
-                    <Link href={`/clinics/${currentClinicId}/calendario/nueva-cita`}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Agendar Cita
-                    </Link>
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {sortedAppointments.map((appointment) => (
-                    <AppointmentCard
-                      key={appointment.id}
-                      appointment={appointment}
-                      patient={appointment.paciente}
-                      clinicId={currentClinicId}
-                    />
+                   <Button className="btn-secondary" asChild>
+                     <Link href={`/clinics/${clinicId}/calendario/nueva-cita`}>
+                       <Plus className="w-4 h-4 mr-2" />
+                       Agendar Cita
+                     </Link>
+                   </Button>
+                 </div>
+               ) : (
+                 <div className="space-y-3">
+                   {sortedAppointments.map((appointment) => (
+                     <AppointmentCard
+                       key={appointment.id}
+                       appointment={appointment}
+                       patient={appointment.paciente}
+                       clinicId={clinicId}
+                     />
                   ))}
                 </div>
               )}

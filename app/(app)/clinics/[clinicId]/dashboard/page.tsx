@@ -1,5 +1,6 @@
 "use client"
 
+import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -22,12 +23,12 @@ import {
   TrendingUp,
 } from "lucide-react"
 import {
-  notifications,
-  getConversationsWithPatients,
+  getClinicNotifications,
+  getClinicConversationsWithPatients,
 } from "@/lib/mock-data"
-import { useClinicContext } from "@/hooks/use-clinic-context"
-import { getClinicPatients, getClinicTodayAppointments } from "@/lib/mock-data"
+import { getClinicPatients, getClinicTodayAppointments, clinics } from "@/lib/mock-data"
 import { formatDateLong } from "@/lib/date-utils"
+import { getClinicColors } from "@/lib/theme-utils"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
   programada: { label: "Programada", color: "bg-blue-100 text-blue-700" },
@@ -39,24 +40,27 @@ const estadoConfig: Record<string, { label: string; color: string }> = {
 }
 
 export default function ClinicDashboardPage() {
-  const { currentClinic, currentClinicId } = useClinicContext()
+  const params = useParams()
+  const clinicId = params.clinicId as string
+  const clinic = clinics.find((c) => c.id === clinicId)
 
-  if (!currentClinic || !currentClinicId) {
+  if (!clinic) {
     return (
       <div className="p-4 md:p-6">
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Seleccionando clínica...</p>
+          <p className="text-muted-foreground">Clínica no encontrada</p>
         </div>
       </div>
     )
   }
 
-  const todayAppointments = getClinicTodayAppointments(currentClinicId)
-  const allPatients = getClinicPatients(currentClinicId)
-  const unreadNotifications = notifications.filter((n) => !n.leida)
-  const activeConversations = getConversationsWithPatients().filter(
+  const todayAppointments = getClinicTodayAppointments(clinicId)
+  const allPatients = getClinicPatients(clinicId)
+  const unreadNotifications = getClinicNotifications(clinicId).filter((n) => !n.leida)
+  const activeConversations = getClinicConversationsWithPatients(clinicId).filter(
     (c) => c.estado === "activa"
   )
+  const clinicColors = getClinicColors(clinic.colorPalette.presetName)
 
   const stats = [
     {
@@ -106,8 +110,8 @@ export default function ClinicDashboardPage() {
       <div className="p-4 md:p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Dashboard - {currentClinic.name}</h1>
+          <div className={`border-l-4 pl-4 ${clinicColors.borderL}`}>
+            <h1 className="text-2xl font-bold text-foreground">Dashboard - {clinic.name}</h1>
             <p className="text-muted-foreground">
               Bienvenido de vuelta. Aquí está el resumen de hoy.
             </p>
@@ -115,8 +119,8 @@ export default function ClinicDashboardPage() {
           <div className="flex gap-2 flex-wrap">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" asChild className="hover:bg-teal-50 hover:text-teal-700 hover:border-teal-300 transition-all duration-200">
-                  <Link href={`/clinics/${currentClinicId}/pacientes/nuevo`}>
+                <Button variant="outline" asChild className={`hover:${clinicColors.bg} hover:${clinicColors.text} hover:${clinicColors.border} transition-all duration-200`}>
+                  <Link href={`/clinics/${clinicId}/pacientes/nuevo`}>
                     <Plus className="w-4 h-4 mr-2" />
                     Nuevo Paciente
                   </Link>
@@ -127,7 +131,7 @@ export default function ClinicDashboardPage() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button className="btn-primary" asChild>
-                  <Link href={`/clinics/${currentClinicId}/calendario/nueva-cita`}>
+                  <Link href={`/clinics/${clinicId}/calendario/nueva-cita`}>
                     <Plus className="w-4 h-4 mr-2" />
                     Nueva Cita
                   </Link>
@@ -179,8 +183,8 @@ export default function ClinicDashboardPage() {
               </div>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" asChild className="hover:bg-teal-50 hover:text-teal-700 transition-all duration-200">
-                    <Link href={`/clinics/${currentClinicId}/calendario`}>
+                  <Button variant="ghost" size="sm" asChild className={`hover:${clinicColors.bg} hover:${clinicColors.text} transition-all duration-200`}>
+                    <Link href={`/clinics/${clinicId}/calendario`}>
                       Ver todas
                       <ArrowRight className="w-4 h-4 ml-1" />
                     </Link>
@@ -195,20 +199,20 @@ export default function ClinicDashboardPage() {
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
                     <Calendar className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <p className="text-muted-foreground mb-4">No hay citas programadas para hoy</p>
-                  <Button className="btn-primary" asChild>
-                    <Link href={`/clinics/${currentClinicId}/calendario/nueva-cita`}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Agendar Cita
-                    </Link>
-                  </Button>
+                   <p className="text-muted-foreground mb-4">No hay citas programadas para hoy</p>
+                   <Button className="btn-primary" asChild>
+                     <Link href={`/clinics/${clinicId}/calendario/nueva-cita`}>
+                       <Plus className="w-4 h-4 mr-2" />
+                       Agendar Cita
+                     </Link>
+                   </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {todayAppointments.slice(0, 4).map((appointment) => (
                     <Link
                       key={appointment.id}
-                      href={`/clinics/${currentClinicId}/calendario/cita/${appointment.id}`}
+                      href={`/clinics/${clinicId}/calendario/cita/${appointment.id}`}
                       className="flex items-center gap-4 p-4 rounded-xl border border-border hover:bg-teal-50/50 hover:border-teal-200 transition-all duration-200 group"
                     >
                       <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 group-hover:from-teal-50 group-hover:to-teal-100 transition-all duration-200">
@@ -245,16 +249,16 @@ export default function ClinicDashboardPage() {
                       </div>
                     </Link>
                   ))}
-                  {todayAppointments.length > 4 && (
-                    <div className="text-center pt-2">
-                      <Button variant="link" asChild className="text-teal-600 hover:text-teal-700">
-                        <Link href={`/clinics/${currentClinicId}/calendario`}>
-                          Ver {todayAppointments.length - 4} citas más
-                          <ArrowRight className="w-4 h-4 ml-1" />
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
+                   {todayAppointments.length > 4 && (
+                     <div className="text-center pt-2">
+                       <Button variant="link" asChild className="text-teal-600 hover:text-teal-700">
+                         <Link href={`/clinics/${clinicId}/calendario`}>
+                           Ver {todayAppointments.length - 4} citas más
+                           <ArrowRight className="w-4 h-4 ml-1" />
+                         </Link>
+                       </Button>
+                     </div>
+                   )}
                 </div>
               )}
             </CardContent>
@@ -281,20 +285,20 @@ export default function ClinicDashboardPage() {
                   <TooltipContent>Ver todas las notificaciones</TooltipContent>
                 </Tooltip>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {notifications.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No hay notificaciones
-                    </p>
-                  ) : (
-                    notifications.slice(0, 3).map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`flex items-start gap-3 p-3 rounded-lg transition-all duration-200 ${
-                          !notification.leida ? "bg-amber-50/70 hover:bg-amber-50" : "hover:bg-muted/50"
-                        }`}
-                      >
+               <CardContent>
+                 <div className="space-y-3">
+                   {unreadNotifications.length === 0 ? (
+                     <p className="text-sm text-muted-foreground text-center py-4">
+                       No hay notificaciones
+                     </p>
+                   ) : (
+                     unreadNotifications.slice(0, 3).map((notification) => (
+                       <div
+                         key={notification.id}
+                         className={`flex items-start gap-3 p-3 rounded-lg transition-all duration-200 ${
+                           !notification.leida ? "bg-amber-50/70 hover:bg-amber-50" : "hover:bg-muted/50"
+                         }`}
+                       >
                         <div
                           className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${
                             !notification.leida ? "bg-amber-500 animate-pulse" : "bg-transparent"

@@ -535,6 +535,7 @@ export const medicalAttachments: MedicalAttachment[] = [
 export const whatsappConversations: WhatsAppConversation[] = [
   {
     id: "conv-001",
+    clinicId: "clinic-001",
     pacienteId: "pac-002",
     ultimaActualizacion: new Date(today.getTime() - 3600000).toISOString(),
     estado: "activa",
@@ -578,6 +579,7 @@ export const whatsappConversations: WhatsAppConversation[] = [
   },
   {
     id: "conv-002",
+    clinicId: "clinic-002",
     pacienteId: "pac-005",
     ultimaActualizacion: new Date(today.getTime() - 86400000).toISOString(),
     estado: "resuelta",
@@ -617,6 +619,7 @@ export const whatsappConversations: WhatsAppConversation[] = [
 export const notifications: Notification[] = [
   {
     id: "notif-001",
+    clinicId: "clinic-001",
     tipo: "cita",
     titulo: "Recordatorio de cita",
     mensaje: "Tu cita de hoy a las 09:00 con la Dra. Carmen Pérez",
@@ -629,6 +632,7 @@ export const notifications: Notification[] = [
   },
   {
     id: "notif-002",
+    clinicId: "clinic-001",
     tipo: "mensaje",
     titulo: "Nuevo mensaje",
     mensaje: "Yolanda envió un mensaje: 'He tenido dolor de cabeza...'",
@@ -641,6 +645,7 @@ export const notifications: Notification[] = [
   },
   {
     id: "notif-003",
+    clinicId: "clinic-002",
     tipo: "recordatorio",
     titulo: "Cita próxima",
     mensaje: "Tienes una cita programada para mañana a las 10:00",
@@ -653,6 +658,7 @@ export const notifications: Notification[] = [
   },
   {
     id: "notif-004",
+    clinicId: "clinic-001",
     tipo: "sistema",
     titulo: "Actualización del sistema",
     mensaje: "Tu información médica fue actualizada",
@@ -661,6 +667,7 @@ export const notifications: Notification[] = [
   },
   {
     id: "notif-005",
+    clinicId: "clinic-001",
     tipo: "cita",
     titulo: "Cita confirmada",
     mensaje: "Tu cita del 27 a las 09:00 ha sido confirmada",
@@ -673,6 +680,7 @@ export const notifications: Notification[] = [
   },
   {
     id: "notif-006",
+    clinicId: "clinic-001",
     tipo: "recordatorio",
     titulo: "Renovación de medicamentos",
     mensaje: "Es hora de renovar tu receta de Losartán",
@@ -990,5 +998,28 @@ export function getPatientMedicalHistory(pacienteId: string): MedicalHistory[] {
 // Helper function to get patient's vaccines
 export function getPatientVaccines(pacienteId: string): Vaccine[] {
   return vaccines.filter((v) => v.pacienteId === pacienteId)
+}
+
+// Clinic-scoped notification functions
+export function getClinicNotifications(clinicId: string): Notification[] {
+  return notifications.filter((n) => n.clinicId === clinicId)
+}
+
+export function getClinicUnreadNotifications(clinicId: string): Notification[] {
+  return getClinicNotifications(clinicId).filter((n) => !n.leida)
+}
+
+// Clinic-scoped conversation functions
+export function getClinicConversations(clinicId: string): WhatsAppConversation[] {
+  return whatsappConversations.filter((c) => c.clinicId === clinicId)
+}
+
+export function getClinicConversationsWithPatients(clinicId: string): (WhatsAppConversation & { paciente: Patient })[] {
+  return getClinicConversations(clinicId)
+    .map((conv) => ({
+      ...conv,
+      paciente: getPatientById(conv.pacienteId)!,
+    }))
+    .filter((conv) => conv.paciente)
 }
 
