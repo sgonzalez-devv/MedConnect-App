@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronDown,
   Stethoscope,
+  Building2,
 } from "lucide-react"
 
 import {
@@ -53,6 +54,14 @@ const mainNavItems = [
     color: "text-indigo-600",
     bgActive: "bg-indigo-50",
     description: "Vista general y resumen del día",
+  },
+  {
+    title: "Multi-Clínica",
+    href: "/multi-clinic-dashboard",
+    icon: Building2,
+    color: "text-purple-600",
+    bgActive: "bg-purple-50",
+    description: "Resumen de todas tus clínicas",
   },
   {
     title: "Calendario",
