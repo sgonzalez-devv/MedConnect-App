@@ -44,7 +44,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { doctorProfile, getUnreadNotificationsCount } from "@/lib/mock-data"
-import { ClinicSelector } from "@/components/clinic-selector"
 
 const mainNavItems = [
   {
@@ -212,9 +211,6 @@ export function AppSidebar() {
 
         <SidebarFooter className="border-t border-sidebar-border">
           <SidebarMenu>
-            <SidebarMenuItem>
-              <ClinicSelector />
-            </SidebarMenuItem>
             <SidebarMenuItem>
               <DropdownMenu>
                 <Tooltip>
