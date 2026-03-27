@@ -1,3 +1,19 @@
+// Authentication types (Phase 1)
+export interface AuthUser {
+  id: string // UUID from Supabase Auth
+  email: string
+  clinic_id: string // From JWT custom claims
+  user_role: 'admin' | 'doctor' | 'staff'
+  full_name?: string
+}
+
+export interface AuthSession {
+  user: AuthUser
+  access_token: string
+  refresh_token?: string
+  expires_at: number // Unix timestamp
+}
+
 export interface Patient {
   id: string
   clinicId: string
