@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { Button } from "@/components/ui/button"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -13,7 +14,7 @@ export default function AppLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading, signOut } = useAuth()
 
   // Redirect to login if not authenticated (fallback for middleware)
   if (!loading && !user) {
@@ -27,6 +28,11 @@ export default function AppLayout({
         <p className="text-muted-foreground">Loading...</p>
       </div>
     )
+  }
+
+  const handleLogout = async () => {
+    await signOut()
+    router.push("/auth/login")
   }
 
   return (
@@ -47,6 +53,13 @@ export default function AppLayout({
                     </p>
                   )}
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                >
+                  Log Out
+                </Button>
               </div>
             )}
           </header>
