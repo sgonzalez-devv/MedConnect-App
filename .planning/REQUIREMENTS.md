@@ -48,16 +48,16 @@ Requirements for the Supabase integration milestone. Each maps to roadmap phases
 
 ### API Service Layer
 
-- [ ] **API-01**: Patients can be fetched via service function (clinic-aware)
-- [ ] **API-02**: Appointments can be fetched via service function (clinic-aware)
-- [ ] **API-03**: Consultation notes can be fetched via service function (clinic-aware)
-- [ ] **API-04**: Vital signs can be fetched via service function (clinic-aware)
-- [ ] **API-05**: Medical attachments can be fetched via service function (clinic-aware)
-- [ ] **API-06**: Doctor profiles can be fetched via service function (clinic-aware)
-- [ ] **API-07**: New records can be created via service function
-- [ ] **API-08**: Existing records can be updated via service function
-- [ ] **API-09**: Records can be deleted via service function
-- [ ] **API-10**: Service functions enforce clinic context automatically
+- [x] **API-01**: Patients can be fetched via service function (clinic-aware)
+- [x] **API-02**: Appointments can be fetched via service function (clinic-aware)
+- [x] **API-03**: Consultation notes can be fetched via service function (clinic-aware)
+- [x] **API-04**: Vital signs can be fetched via service function (clinic-aware)
+- [x] **API-05**: Medical attachments can be fetched via service function (clinic-aware)
+- [x] **API-06**: Doctor profiles can be fetched via service function (clinic-aware)
+- [x] **API-07**: New records can be created via service function
+- [x] **API-08**: Existing records can be updated via service function
+- [x] **API-09**: Records can be deleted via service function
+- [x] **API-10**: Service functions enforce clinic context automatically
 
 ### Frontend Integration
 
@@ -70,11 +70,11 @@ Requirements for the Supabase integration milestone. Each maps to roadmap phases
 
 ### Error Handling
 
-- [ ] **ERR-01**: User sees error message if Supabase connection fails
-- [ ] **ERR-02**: User sees error message if clinic isolation check fails
-- [ ] **ERR-03**: User is logged out if session expires
-- [ ] **ERR-04**: User is redirected to login if attempting to access without auth
-- [ ] **ERR-05**: User sees error if attempting to access clinic they don't belong to
+- [x] **ERR-01**: User sees error message if Supabase connection fails
+- [x] **ERR-02**: User sees error message if clinic isolation check fails
+- [x] **ERR-03**: User is logged out if session expires
+- [x] **ERR-04**: User is redirected to login if attempting to access without auth
+- [x] **ERR-05**: User sees error if attempting to access clinic they don't belong to
 
 ## v2 Requirements
 
@@ -155,27 +155,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ISOL-04 | Phase 2 | Pending |
 | ISOL-05 | Phase 2 | Pending |
 | ISOL-06 | Phase 2 | Pending |
-| API-01 | Phase 3 | Pending |
-| API-02 | Phase 3 | Pending |
-| API-03 | Phase 3 | Pending |
-| API-04 | Phase 3 | Pending |
-| API-05 | Phase 3 | Pending |
-| API-06 | Phase 3 | Pending |
-| API-07 | Phase 3 | Pending |
-| API-08 | Phase 3 | Pending |
-| API-09 | Phase 3 | Pending |
-| API-10 | Phase 3 | Pending |
+| API-01 | Phase 3 | Complete |
+| API-02 | Phase 3 | Complete |
+| API-03 | Phase 3 | Complete |
+| API-04 | Phase 3 | Complete |
+| API-05 | Phase 3 | Complete |
+| API-06 | Phase 3 | Complete |
+| API-07 | Phase 3 | Complete |
+| API-08 | Phase 3 | Complete |
+| API-09 | Phase 3 | Complete |
+| API-10 | Phase 3 | Complete |
 | FE-01 | Phase 3 | Pending |
 | FE-02 | Phase 3 | Pending |
 | FE-03 | Phase 3 | Pending |
 | FE-04 | Phase 3 | Pending |
 | FE-05 | Phase 3 | Pending |
 | FE-06 | Phase 3 | Pending |
-| ERR-01 | Phase 3 | Pending |
-| ERR-02 | Phase 3 | Pending |
-| ERR-03 | Phase 3 | Pending |
-| ERR-04 | Phase 3 | Pending |
-| ERR-05 | Phase 3 | Pending |
+| ERR-01 | Phase 3 | Complete |
+| ERR-02 | Phase 3 | Complete |
+| ERR-03 | Phase 3 | Complete |
+| ERR-04 | Phase 3 | Complete |
+| ERR-05 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 47 total
