@@ -205,3 +205,103 @@ export interface GroupMetrics {
   completedAppointmentsThisMonth: number
   appointmentsByClinic: Record<string, number>
 }
+
+// ============================================================================
+// API Response & Request Types (Phase 4)
+// ============================================================================
+
+/**
+ * Standard API response wrapper for all service layer operations
+ * 
+ * @requirement API-01
+ * @example
+ * const response: ApiResponse<Patient[]> = {
+ *   data: [...],
+ *   status: 200,
+ *   timestamp: "2026-03-30T14:30:00Z"
+ * }
+ */
+export interface ApiResponse<T> {
+  data?: T
+  error?: string
+  status: number
+  timestamp?: string
+}
+
+/**
+ * Standard API error response structure
+ * 
+ * Used by error handlers to provide consistent error information
+ * to frontend components without exposing database details.
+ * 
+ * @requirement ERR-01, ERR-02, ERR-03, ERR-04, ERR-05
+ */
+export interface ApiError {
+  code: string // Error category: AUTH_ERROR, CLINIC_ISOLATION_ERROR, VALIDATION_ERROR, CONNECTION_ERROR
+  message: string // User-friendly message (never raw DB errors)
+  details?: unknown // Technical details for logging (not sent to user)
+  timestamp: string
+}
+
+/**
+ * Request type for creating a new patient via forms
+ * 
+ * @requirement API-07
+ */
+export interface CreatePatientRequest {
+  nombre: string
+  apellido: string
+  email: string
+  telefono: string
+  fechaNacimiento: string
+  genero: 'masculino' | 'femenino' | 'otro'
+  direccion: string
+  alergias?: string[]
+  condicionesCronicas?: string[]
+  grupoSanguineo?: string
+  avatar?: string
+}
+
+/**
+ * Request type for updating an appointment via forms
+ * 
+ * @requirement API-08
+ */
+export interface UpdateAppointmentRequest {
+  fecha?: string
+  hora?: string
+  duracion?: number
+  tipo?: 'consulta' | 'seguimiento' | 'urgencia' | 'revision'
+  estado?: 'programada' | 'confirmada' | 'en_curso' | 'completada' | 'cancelada' | 'no_asistio'
+  motivo?: string
+  notas?: string
+}
+
+/**
+ * Request type for creating an appointment via forms
+ * 
+ * @requirement API-07
+ */
+export interface CreateAppointmentRequest {
+  pacienteId: string
+  fecha: string
+  hora: string
+  duracion: number
+  tipo: 'consulta' | 'seguimiento' | 'urgencia' | 'revision'
+  motivo: string
+  notas?: string
+}
+
+/**
+ * Pagination metadata for list responses
+ * 
+ * Used when returning paginated data from list endpoints
+ * 
+ * @requirement API-01
+ */
+export interface PaginationMeta {
+  total: number
+  limit: number
+  offset: number
+  hasMore: boolean
+}
