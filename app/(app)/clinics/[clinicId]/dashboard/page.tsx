@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,10 +26,15 @@ import {
 import {
   getClinicNotifications,
   getClinicConversationsWithPatients,
+  getClinicPatients,
+  clinics,
 } from "@/lib/mock-data"
-import { getClinicPatients, getClinicTodayAppointments, clinics } from "@/lib/mock-data"
 import { formatDateLong } from "@/lib/date-utils"
 import { getClinicColors } from "@/lib/theme-utils"
+import { useAuth } from "@/hooks/use-auth"
+import { toast } from "sonner"
+import { formatErrorMessage } from "@/lib/error-handling"
+import type { Appointment } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
   programada: { label: "Programada", color: "bg-blue-100 text-blue-700" },
@@ -42,7 +48,40 @@ const estadoConfig: Record<string, { label: string; color: string }> = {
 export default function ClinicDashboardPage() {
   const params = useParams()
   const clinicId = params.clinicId as string
+  const { user } = useAuth()
   const clinic = clinics.find((c) => c.id === clinicId)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchAppointments() {
+      if (!user?.clinic_id) return
+
+      try {
+        setLoading(true)
+        const today = new Date().toISOString().split("T")[0]
+        const res = await fetch(
+          `/api/appointments?fromDate=${today}&toDate=${today}`
+        )
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.error || `HTTP ${res.status}`)
+        }
+
+        const json = await res.json()
+        setAppointments(json.data || [])
+      } catch (err) {
+        const message = formatErrorMessage(err, "Fetching clinic appointments")
+        toast.error(message)
+        console.error("Clinic dashboard fetch error:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAppointments()
+  }, [user?.clinic_id])
 
   if (!clinic) {
     return (
@@ -54,7 +93,7 @@ export default function ClinicDashboardPage() {
     )
   }
 
-  const todayAppointments = getClinicTodayAppointments(clinicId)
+  const todayAppointments = appointments
   const allPatients = getClinicPatients(clinicId)
   const unreadNotifications = getClinicNotifications(clinicId).filter((n) => !n.leida)
   const activeConversations = getClinicConversationsWithPatients(clinicId).filter(
@@ -194,7 +233,20 @@ export default function ClinicDashboardPage() {
               </Tooltip>
             </CardHeader>
             <CardContent>
-              {todayAppointments.length === 0 ? (
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-border animate-pulse">
+                      <div className="w-14 h-14 rounded-xl bg-muted" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-muted rounded w-32" />
+                        <div className="h-3 bg-muted rounded w-48" />
+                      </div>
+                      <div className="h-8 bg-muted rounded w-16" />
+                    </div>
+                  ))}
+                </div>
+              ) : todayAppointments.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
                     <Calendar className="w-8 h-8 text-muted-foreground" />
@@ -221,7 +273,7 @@ export default function ClinicDashboardPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-foreground truncate group-hover:text-teal-700 transition-colors duration-200">
-                            {appointment.paciente.nombre} {appointment.paciente.apellido}
+                            {appointment.paciente?.nombre} {appointment.paciente?.apellido}
                           </p>
                           {appointment.creadoPorBot && (
                             <Tooltip>
