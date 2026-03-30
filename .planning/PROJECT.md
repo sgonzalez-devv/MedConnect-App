@@ -24,7 +24,8 @@ Users can securely access a complete, persistent medical records system where ev
 
 ### Validated
 
-(None yet — starting new milestone)
+- **DATA-01 through DATA-10** — All 10 core and data tables created with clinic isolation (Phase 03)
+- **ISOL-01 through ISOL-06** — Row-level security policies implemented and tested (Phase 03)
 
 ### Active
 
@@ -73,10 +74,11 @@ See `.planning/REQUIREMENTS.md` for full list.
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Use Supabase Auth + custom users table | Flexible user profiles tied to clinics, built-in secure auth | — Pending |
-| Incremental migration (Auth → Data) | Reduces risk, allows testing in phases | — Pending |
-| Clean database (no seed data) | Easier onboarding, no legacy data baggage | — Pending |
-| Keep TypeScript interfaces unchanged | Minimal frontend refactoring, API layer adapts to existing types | — Pending |
+| Use Supabase Auth + custom users table | Flexible user profiles tied to clinics, built-in secure auth | ✅ Auth completed (Phase 02) |
+| Incremental migration (Auth → Data) | Reduces risk, allows testing in phases | ✅ Schema & RLS completed (Phase 03) |
+| Clean database (no seed data) | Easier onboarding, no legacy data baggage | ✅ All tables in production schema |
+| Keep TypeScript interfaces unchanged | Minimal frontend refactoring, API layer adapts to existing types | ✅ Interfaces preserved, query functions created |
+| RLS enforcement at PostgreSQL layer | Defense-in-depth security with app-level filtering | ✅ RLS policies + app queries (Phase 03) |
 
 ## Evolution
 
@@ -96,4 +98,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 after milestone initialization*
+*Last updated: 2026-03-30 after Phase 03 (Database Schema & RLS) completion*
