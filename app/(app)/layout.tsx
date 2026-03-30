@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/app-sidebar"
 import { Separator } from "@/components/ui/separator"
 import { ClinicProvider } from "@/context/clinic-context"
+import { Toaster } from "@/components/ui/sonner"
 
 export default function AppLayout({
   children,
@@ -68,6 +69,7 @@ export default function AppLayout({
           </main>
         </SidebarInset>
       </SidebarProvider>
+      <Toaster />
     </ClinicProvider>
   )
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -22,12 +23,14 @@ import {
   TrendingUp,
 } from "lucide-react"
 import {
-  getTodayAppointments,
-  patients,
   notifications,
   getConversationsWithPatients,
 } from "@/lib/mock-data"
 import { formatDateLong } from "@/lib/date-utils"
+import { useAuth } from "@/hooks/use-auth"
+import { toast } from "sonner"
+import { formatErrorMessage } from "@/lib/error-handling"
+import type { Appointment } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
   programada: { label: "Programada", color: "bg-blue-100 text-blue-700" },
@@ -39,7 +42,56 @@ const estadoConfig: Record<string, { label: string; color: string }> = {
 }
 
 export default function DashboardPage() {
-  const todayAppointments = getTodayAppointments()
+  const { user } = useAuth()
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [patientsCount, setPatientsCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchData() {
+      if (!user?.clinic_id) return
+
+      try {
+        setLoading(true)
+        setError(null)
+
+        const today = new Date().toISOString().split("T")[0]
+
+        const [appointmentsRes, patientsRes] = await Promise.all([
+          fetch(`/api/appointments?fromDate=${today}&toDate=${today}`),
+          fetch(`/api/patients?limit=1`),
+        ])
+
+        if (!appointmentsRes.ok) {
+          const errData = await appointmentsRes.json().catch(() => ({}))
+          throw new Error(errData.error || `HTTP ${appointmentsRes.status}`)
+        }
+
+        const appointmentsJson = await appointmentsRes.json()
+        setAppointments(appointmentsJson.data || [])
+
+        if (patientsRes.ok) {
+          const patientsJson = await patientsRes.json()
+          // Use total count from pagination metadata or array length
+          setPatientsCount(
+            patientsJson.total || patientsJson.data?.length || 0
+          )
+        }
+      } catch (err) {
+        const message = formatErrorMessage(err, "Fetching dashboard data")
+        setError(message)
+        toast.error(message)
+        console.error("Dashboard fetch error:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [user?.clinic_id])
+
+  const todayAppointments = appointments
   const unreadNotifications = notifications.filter((n) => !n.leida)
   const activeConversations = getConversationsWithPatients().filter(
     (c) => c.estado === "activa"
@@ -58,7 +110,7 @@ export default function DashboardPage() {
     },
     {
       title: "Pacientes Totales",
-      value: patients.length,
+      value: patientsCount,
       description: "Registrados en el sistema",
       icon: Users,
       color: "text-teal-600",
@@ -125,6 +177,14 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Error Banner */}
+        {error && (
+          <div className="p-4 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {stats.map((stat) => (
@@ -177,7 +237,20 @@ export default function DashboardPage() {
               </Tooltip>
             </CardHeader>
             <CardContent>
-              {todayAppointments.length === 0 ? (
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-border animate-pulse">
+                      <div className="w-14 h-14 rounded-xl bg-muted" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-muted rounded w-32" />
+                        <div className="h-3 bg-muted rounded w-48" />
+                      </div>
+                      <div className="h-8 bg-muted rounded w-16" />
+                    </div>
+                  ))}
+                </div>
+              ) : todayAppointments.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
                     <Calendar className="w-8 h-8 text-muted-foreground" />
@@ -204,7 +277,7 @@ export default function DashboardPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-foreground truncate group-hover:text-teal-700 transition-colors duration-200">
-                            {appointment.paciente.nombre} {appointment.paciente.apellido}
+                            {appointment.paciente?.nombre} {appointment.paciente?.apellido}
                           </p>
                           {appointment.creadoPorBot && (
                             <Tooltip>
