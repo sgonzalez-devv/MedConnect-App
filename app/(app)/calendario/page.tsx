@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -26,6 +27,7 @@ import {
   MoreVertical,
   CalendarDays,
   CalendarIcon,
+  Loader2,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -33,8 +35,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { getAppointmentsWithPatients } from "@/lib/mock-data"
 import { formatDateWithWeekday, formatDateShort } from "@/lib/date-utils"
+import { useAuth } from "@/hooks/use-auth"
+import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
+import { toast } from "@/hooks/use-toast"
 import type { Appointment, Patient } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
@@ -60,10 +64,87 @@ const MESES = [
 ]
 
 export default function CalendarPage() {
+  const router = useRouter()
+  const { user, session, loading: authLoading, signOut } = useAuth()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [view, setView] = useState<"day" | "week">("day")
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const allAppointments = getAppointmentsWithPatients()
+  // Fetch appointments from API
+  const fetchAppointments = useCallback(async () => {
+    if (!session?.access_token) return
+
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/appointments', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (response.status === 401) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+
+      if (!response.ok) {
+        const error = await response.json()
+        toast({ title: formatErrorMessage(error) })
+        return
+      }
+
+      const result = await response.json()
+      setAppointments(result.data || [])
+    } catch (error) {
+      if (isAuthError(error)) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+      toast({ title: formatErrorMessage(error, 'Fetching appointments') })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [session, signOut, router])
+
+  // Fetch patients for display names
+  const fetchPatients = useCallback(async () => {
+    if (!session?.access_token) return
+
+    try {
+      const response = await fetch('/api/patients', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        setPatients(result.data || [])
+      }
+    } catch {
+      // Silently fail - patient names won't show but appointments still work
+    }
+  }, [session])
+
+  useEffect(() => {
+    if (!authLoading && session) {
+      fetchAppointments()
+      fetchPatients()
+    } else if (!authLoading && !session) {
+      router.push('/auth/login')
+    }
+  }, [authLoading, session, fetchAppointments, fetchPatients, router])
+
+  // Join appointments with patient data
+  const patientMap = new Map(patients.map(p => [p.id, p]))
+  const allAppointments = appointments.map(apt => ({
+    ...apt,
+    paciente: apt.pacienteId ? patientMap.get(apt.pacienteId) : undefined,
+  })).filter(apt => apt.paciente) as (Appointment & { paciente: Patient })[]
 
   // Format date consistently
   const formatDateStr = (date: Date) => {
@@ -143,6 +224,17 @@ export default function CalendarPage() {
   const calendarDays = generateCalendarDays()
   const today = new Date()
   const todayStr = formatDateStr(today)
+
+  if (authLoading || isLoading) {
+    return (
+      <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-4" />
+          <p className="text-muted-foreground">Cargando calendario...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <TooltipProvider>

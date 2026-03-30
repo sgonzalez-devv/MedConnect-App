@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,10 +17,13 @@ import {
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ArrowLeft, CalendarIcon, Clock, User, Bot } from "lucide-react"
+import { ArrowLeft, CalendarIcon, Clock, User, Bot, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { patients } from "@/lib/mock-data"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useAuth } from "@/hooks/use-auth"
+import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
+import { toast } from "@/hooks/use-toast"
+import type { Patient } from "@/lib/types"
 
 const timeSlots = [
   "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
@@ -30,9 +33,11 @@ const timeSlots = [
 
 export default function NewAppointmentPage() {
   const router = useRouter()
+  const { user, session, loading: authLoading, signOut } = useAuth()
   const [mode, setMode] = useState<"manual" | "bot">("manual")
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [isLoading, setIsLoading] = useState(false)
+  const [patients, setPatients] = useState<Patient[]>([])
   const [formData, setFormData] = useState({
     pacienteId: "",
     hora: "",
@@ -42,11 +47,121 @@ export default function NewAppointmentPage() {
     notas: "",
   })
 
+  // Fetch patients for dropdown
+  const fetchPatients = useCallback(async () => {
+    if (!session?.access_token) return
+
+    try {
+      const response = await fetch('/api/patients', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (response.status === 401) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+
+      if (!response.ok) {
+        const error = await response.json()
+        toast({ title: formatErrorMessage(error) })
+        return
+      }
+
+      const result = await response.json()
+      setPatients(result.data || [])
+    } catch (error) {
+      if (isAuthError(error)) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+      toast({ title: formatErrorMessage(error, 'Fetching patients') })
+    }
+  }, [session, signOut, router])
+
+  useEffect(() => {
+    if (!authLoading && session) {
+      fetchPatients()
+    } else if (!authLoading && !session) {
+      router.push('/auth/login')
+    }
+  }, [authLoading, session, fetchPatients, router])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!session?.access_token || !user) {
+      toast({ title: 'Debes iniciar sesión para crear una cita' })
+      return
+    }
+
+    if (!formData.pacienteId || !formData.hora || !formData.motivo || !date) {
+      toast({ title: 'Por favor completa todos los campos requeridos' })
+      return
+    }
+
+    // Validate date is in the future
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (date < today) {
+      toast({ title: 'La fecha de la cita debe ser en el futuro' })
+      return
+    }
+
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    router.push("/calendario")
+
+    try {
+      const fechaStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`
+
+      const response = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          pacienteId: formData.pacienteId,
+          fecha: fechaStr,
+          hora: formData.hora,
+          duracion: parseInt(formData.duracion),
+          tipo: formData.tipo,
+          motivo: formData.motivo,
+          notas: formData.notas || undefined,
+        }),
+      })
+
+      if (response.status === 401) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+
+      if (response.status === 403) {
+        toast({ title: 'No tienes permiso para crear esta cita' })
+        return
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast({ title: formatErrorMessage(errorData) })
+        return
+      }
+
+      toast({ title: 'Cita creada exitosamente' })
+      router.push("/calendario")
+    } catch (error) {
+      if (isAuthError(error)) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+      toast({ title: formatErrorMessage(error, 'Creating appointment') })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -238,7 +353,12 @@ export default function NewAppointmentPage() {
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                     disabled={isLoading}
                   >
-                    {isLoading ? "Guardando..." : "Agendar Cita"}
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : "Agendar Cita"}
                   </Button>
                 </div>
               </form>
