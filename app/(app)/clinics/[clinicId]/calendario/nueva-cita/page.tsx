@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,11 +17,14 @@ import {
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ArrowLeft, CalendarIcon, Clock, User, Bot } from "lucide-react"
+import { ArrowLeft, CalendarIcon, Clock, User, Bot, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getClinicPatients, clinics } from "@/lib/mock-data"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getClinicColors } from "@/lib/theme-utils"
+import { useAuth } from "@/hooks/use-auth"
+import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
+import { toast } from "@/hooks/use-toast"
+import type { Patient } from "@/lib/types"
 
 const timeSlots = [
   "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
@@ -34,12 +37,14 @@ export default function ClinicNewAppointmentPage() {
   const params = useParams()
   const searchParams = useSearchParams()
   const clinicId = params.clinicId as string
-  const clinic = clinics.find((c) => c.id === clinicId)
   const preSelectedPatientId = searchParams.get("paciente") || ""
+  const { user, session, loading: authLoading, signOut } = useAuth()
+  const clinicColors = getClinicColors("teal")
 
   const [mode, setMode] = useState<"manual" | "bot">("manual")
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [isLoading, setIsLoading] = useState(false)
+  const [patients, setPatients] = useState<Patient[]>([])
   const [formData, setFormData] = useState({
     pacienteId: preSelectedPatientId,
     hora: "",
@@ -49,24 +54,135 @@ export default function ClinicNewAppointmentPage() {
     notas: "",
   })
 
-  if (!clinic) {
-    return (
-      <div className="p-4 md:p-6">
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Clínica no encontrada</p>
-        </div>
-      </div>
-    )
-  }
+  // Verify user has access to this clinic
+  useEffect(() => {
+    if (!authLoading) {
+      if (!session) {
+        router.push('/auth/login')
+        return
+      }
+      if (user?.clinic_id && user.clinic_id !== clinicId) {
+        toast({ title: 'No tienes acceso a esta clínica' })
+        router.push('/clinics')
+        return
+      }
+    }
+  }, [authLoading, session, user, clinicId, router])
 
-  const clinicColors = getClinicColors(clinic.colorPalette.presetName)
-  const clinicPatients = getClinicPatients(clinicId)
+  // Fetch patients for dropdown
+  const fetchPatients = useCallback(async () => {
+    if (!session?.access_token) return
+
+    try {
+      const response = await fetch('/api/patients', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (response.status === 401) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+
+      if (!response.ok) {
+        const error = await response.json()
+        toast({ title: formatErrorMessage(error) })
+        return
+      }
+
+      const result = await response.json()
+      setPatients(result.data || [])
+    } catch (error) {
+      if (isAuthError(error)) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+      toast({ title: formatErrorMessage(error, 'Fetching patients') })
+    }
+  }, [session, signOut, router])
+
+  useEffect(() => {
+    if (!authLoading && session) {
+      fetchPatients()
+    }
+  }, [authLoading, session, fetchPatients])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!session?.access_token || !user) {
+      toast({ title: 'Debes iniciar sesión para crear una cita' })
+      return
+    }
+
+    if (!formData.pacienteId || !formData.hora || !formData.motivo || !date) {
+      toast({ title: 'Por favor completa todos los campos requeridos' })
+      return
+    }
+
+    // Validate date is in the future
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (date < today) {
+      toast({ title: 'La fecha de la cita debe ser en el futuro' })
+      return
+    }
+
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    router.push(`/clinics/${clinicId}/calendario`)
+
+    try {
+      const fechaStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`
+
+      const response = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          pacienteId: formData.pacienteId,
+          fecha: fechaStr,
+          hora: formData.hora,
+          duracion: parseInt(formData.duracion),
+          tipo: formData.tipo,
+          motivo: formData.motivo,
+          notas: formData.notas || undefined,
+          clinic_id: clinicId,
+        }),
+      })
+
+      if (response.status === 401) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+
+      if (response.status === 403) {
+        toast({ title: 'No tienes permiso para crear esta cita' })
+        return
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast({ title: formatErrorMessage(errorData) })
+        return
+      }
+
+      toast({ title: 'Cita creada exitosamente' })
+      router.push(`/clinics/${clinicId}/calendario`)
+    } catch (error) {
+      if (isAuthError(error)) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+      toast({ title: formatErrorMessage(error, 'Creating appointment') })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -79,7 +195,7 @@ export default function ClinicNewAppointmentPage() {
           </Link>
         </Button>
         <div className={`border-l-4 pl-4 ${clinicColors.borderL} flex-1`}>
-          <h1 className="text-2xl font-bold text-foreground">Nueva Cita - {clinic.name}</h1>
+          <h1 className="text-2xl font-bold text-foreground">Nueva Cita</h1>
           <p className="text-muted-foreground">Programa una nueva cita médica</p>
         </div>
       </div>
@@ -117,7 +233,7 @@ export default function ClinicNewAppointmentPage() {
                       <SelectValue placeholder="Selecciona un paciente" />
                     </SelectTrigger>
                     <SelectContent>
-                      {clinicPatients.map((patient) => (
+                      {patients.map((patient) => (
                         <SelectItem key={patient.id} value={patient.id}>
                           {patient.nombre} {patient.apellido}
                         </SelectItem>
@@ -258,7 +374,12 @@ export default function ClinicNewAppointmentPage() {
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                     disabled={isLoading}
                   >
-                    {isLoading ? "Guardando..." : "Agendar Cita"}
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : "Agendar Cita"}
                   </Button>
                 </div>
               </form>
@@ -283,13 +404,13 @@ export default function ClinicNewAppointmentPage() {
                   Bot de WhatsApp Activo
                 </h3>
                 <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                  Los pacientes pueden enviar un mensaje al número de WhatsApp de {clinic.name}
+                  Los pacientes pueden enviar un mensaje al número de WhatsApp del consultorio
                   para agendar citas automáticamente. El bot les guiará en el proceso.
                 </p>
                 <div className="bg-muted p-4 rounded-lg inline-block">
                   <p className="text-sm text-muted-foreground mb-1">Número de WhatsApp</p>
                   <p className="text-lg font-mono font-medium text-foreground">
-                    {clinic.telefono}
+                    +1 809 555 1234
                   </p>
                 </div>
               </div>

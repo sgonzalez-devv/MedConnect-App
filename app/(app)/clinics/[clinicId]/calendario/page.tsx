@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useParams } from "next/navigation"
+import { useState, useEffect, useCallback } from "react"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,7 @@ import {
   MoreVertical,
   CalendarDays,
   CalendarIcon,
+  Loader2,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -34,9 +35,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { getClinicAppointments, getPatientById, clinics } from "@/lib/mock-data"
 import { formatDateWithWeekday, formatDateShort } from "@/lib/date-utils"
 import { getClinicColors } from "@/lib/theme-utils"
+import { useAuth } from "@/hooks/use-auth"
+import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
+import { toast } from "@/hooks/use-toast"
 import type { Appointment, Patient } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
@@ -62,28 +65,103 @@ const MESES = [
 ]
 
 export default function ClinicCalendarPage() {
+  const router = useRouter()
   const params = useParams()
   const clinicId = params.clinicId as string
-  const clinic = clinics.find((c) => c.id === clinicId)
+  const { user, session, loading: authLoading, signOut } = useAuth()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [view, setView] = useState<"day" | "week">("day")
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const clinicColors = getClinicColors("teal")
 
-  if (!clinic) {
-    return (
-      <div className="p-4 md:p-6">
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Clínica no encontrada</p>
-        </div>
-      </div>
-    )
-  }
+  // Verify user has access to this clinic
+  useEffect(() => {
+    if (!authLoading) {
+      if (!session) {
+        router.push('/auth/login')
+        return
+      }
+      if (user?.clinic_id && user.clinic_id !== clinicId) {
+        toast({ title: 'No tienes acceso a esta clínica' })
+        router.push('/clinics')
+        return
+      }
+    }
+  }, [authLoading, session, user, clinicId, router])
 
-  const clinicColors = getClinicColors(clinic.colorPalette.presetName)
-  const appointmentsData = getClinicAppointments(clinicId)
+  // Fetch appointments from API
+  const fetchAppointments = useCallback(async () => {
+    if (!session?.access_token) return
+
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/appointments', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (response.status === 401) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+
+      if (!response.ok) {
+        const error = await response.json()
+        toast({ title: formatErrorMessage(error) })
+        return
+      }
+
+      const result = await response.json()
+      setAppointments(result.data || [])
+    } catch (error) {
+      if (isAuthError(error)) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+      toast({ title: formatErrorMessage(error, 'Fetching appointments') })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [session, signOut, router])
+
+  // Fetch patients for display names
+  const fetchPatients = useCallback(async () => {
+    if (!session?.access_token) return
+
+    try {
+      const response = await fetch('/api/patients', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        setPatients(result.data || [])
+      }
+    } catch {
+      // Silently fail
+    }
+  }, [session])
+
+  useEffect(() => {
+    if (!authLoading && session) {
+      fetchAppointments()
+      fetchPatients()
+    }
+  }, [authLoading, session, fetchAppointments, fetchPatients])
+
   // Join appointments with patient data
-  const allAppointments = appointmentsData
-    .map((apt) => ({ ...apt, paciente: getPatientById(apt.pacienteId)! }))
-    .filter((apt) => apt.paciente)
+  const patientMap = new Map(patients.map(p => [p.id, p]))
+  const allAppointments = appointments.map(apt => ({
+    ...apt,
+    paciente: apt.pacienteId ? patientMap.get(apt.pacienteId) : undefined,
+  })).filter(apt => apt.paciente) as (Appointment & { paciente: Patient })[]
 
   // Format date consistently
   const formatDateStr = (date: Date) => {
@@ -164,13 +242,24 @@ export default function ClinicCalendarPage() {
   const today = new Date()
   const todayStr = formatDateStr(today)
 
+  if (authLoading || isLoading) {
+    return (
+      <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-4" />
+          <p className="text-muted-foreground">Cargando calendario...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <TooltipProvider>
       <div className="p-4 md:p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className={`border-l-4 pl-4 ${clinicColors.borderL}`}>
-            <h1 className="text-2xl font-bold text-foreground">Calendario - {clinic.name}</h1>
+            <h1 className="text-2xl font-bold text-foreground">Calendario</h1>
             <p className="text-muted-foreground">Gestiona tus citas del día</p>
           </div>
           <Tooltip>

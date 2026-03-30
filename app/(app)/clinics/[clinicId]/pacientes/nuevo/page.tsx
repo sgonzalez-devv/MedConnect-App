@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,17 +17,20 @@ import {
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ArrowLeft, CalendarIcon, Plus, X } from "lucide-react"
+import { ArrowLeft, CalendarIcon, Plus, X, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import { clinics } from "@/lib/mock-data"
 import { getClinicColors } from "@/lib/theme-utils"
+import { useAuth } from "@/hooks/use-auth"
+import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
+import { toast } from "@/hooks/use-toast"
 
 export default function ClinicNewPatientPage() {
   const router = useRouter()
   const params = useParams()
   const clinicId = params.clinicId as string
-  const clinic = clinics.find((c) => c.id === clinicId)
+  const { user, session, loading: authLoading, signOut } = useAuth()
+  const clinicColors = getClinicColors("teal")
 
   const [isLoading, setIsLoading] = useState(false)
   const [birthDate, setBirthDate] = useState<Date | undefined>()
@@ -45,17 +48,20 @@ export default function ClinicNewPatientPage() {
     condicionesCronicas: [] as string[],
   })
 
-  if (!clinic) {
-    return (
-      <div className="p-4 md:p-6">
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Clínica no encontrada</p>
-        </div>
-      </div>
-    )
-  }
-
-  const clinicColors = getClinicColors(clinic.colorPalette.presetName)
+  // Verify user has access to this clinic
+  useEffect(() => {
+    if (!authLoading) {
+      if (!session) {
+        router.push('/auth/login')
+        return
+      }
+      if (user?.clinic_id && user.clinic_id !== clinicId) {
+        toast({ title: 'No tienes acceso a esta clínica' })
+        router.push('/clinics')
+        return
+      }
+    }
+  }, [authLoading, session, user, clinicId, router])
 
   const handleAddAlergia = () => {
     if (newAlergia.trim() && !formData.alergias.includes(newAlergia.trim())) {
@@ -93,9 +99,85 @@ export default function ClinicNewPatientPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!session?.access_token || !user) {
+      toast({ title: 'Debes iniciar sesión para registrar un paciente' })
+      return
+    }
+
+    if (!formData.nombre || !formData.apellido || !formData.email || !formData.telefono || !formData.genero || !birthDate) {
+      toast({ title: 'Por favor completa todos los campos requeridos' })
+      return
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      toast({ title: 'El formato del correo electrónico no es válido' })
+      return
+    }
+
+    // Validate birth date is in the past
+    if (birthDate > new Date()) {
+      toast({ title: 'La fecha de nacimiento debe ser en el pasado' })
+      return
+    }
+
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    router.push(`/clinics/${clinicId}/pacientes`)
+
+    try {
+      const fechaNacimiento = `${birthDate.getFullYear()}-${(birthDate.getMonth() + 1).toString().padStart(2, "0")}-${birthDate.getDate().toString().padStart(2, "0")}`
+
+      const response = await fetch('/api/patients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          apellido: formData.apellido,
+          email: formData.email,
+          telefono: formData.telefono,
+          fechaNacimiento,
+          genero: formData.genero,
+          direccion: formData.direccion || undefined,
+          alergias: formData.alergias.length > 0 ? formData.alergias : undefined,
+          condicionesCronicas: formData.condicionesCronicas.length > 0 ? formData.condicionesCronicas : undefined,
+          grupoSanguineo: formData.grupoSanguineo || undefined,
+          clinic_id: clinicId,
+        }),
+      })
+
+      if (response.status === 401) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+
+      if (response.status === 403) {
+        toast({ title: 'No tienes permiso para registrar pacientes' })
+        return
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast({ title: formatErrorMessage(errorData) })
+        return
+      }
+
+      toast({ title: 'Paciente registrado exitosamente' })
+      router.push(`/clinics/${clinicId}/pacientes`)
+    } catch (error) {
+      if (isAuthError(error)) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+      toast({ title: formatErrorMessage(error, 'Creating patient') })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -108,7 +190,7 @@ export default function ClinicNewPatientPage() {
           </Link>
         </Button>
         <div className={`border-l-4 pl-4 ${clinicColors.borderL} flex-1`}>
-          <h1 className="text-2xl font-bold text-foreground">Nuevo Paciente - {clinic.name}</h1>
+          <h1 className="text-2xl font-bold text-foreground">Nuevo Paciente</h1>
           <p className="text-muted-foreground">Registra un nuevo paciente en esta clínica</p>
         </div>
       </div>
@@ -342,7 +424,12 @@ export default function ClinicNewPatientPage() {
                 className="bg-teal-600 hover:bg-teal-700 text-white"
                 disabled={isLoading}
               >
-                {isLoading ? "Guardando..." : "Registrar Paciente"}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Guardando...
+                  </>
+                ) : "Registrar Paciente"}
               </Button>
             </div>
           </form>
