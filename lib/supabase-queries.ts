@@ -106,6 +106,19 @@ export async function updatePatient(
 }
 
 /**
+ * Delete patient from clinic (cascade to related records).
+ */
+export async function deletePatient(clinic_id: string, patient_id: string) {
+  const supabase = await createClient();
+  
+  return supabase
+    .from('patients')
+    .delete()
+    .eq('id', patient_id)
+    .eq('clinic_id', clinic_id);
+}
+
+/**
  * Get appointments for clinic with optional patient filter.
  */
 export async function getAppointments(
@@ -185,20 +198,37 @@ export async function updateAppointment(
 }
 
 /**
- * Get consultation notes for patient in clinic.
+ * Delete appointment from clinic.
  */
-export async function getConsultationNotes(
-  clinic_id: string,
-  patient_id: string
-) {
+export async function deleteAppointment(clinic_id: string, appointment_id: string) {
   const supabase = await createClient();
   
   return supabase
+    .from('appointments')
+    .delete()
+    .eq('id', appointment_id)
+    .eq('clinic_id', clinic_id);
+}
+
+/**
+ * Get consultation notes for clinic (optionally filtered by patient).
+ */
+export async function getConsultationNotes(
+  clinic_id: string,
+  patient_id?: string
+) {
+  const supabase = await createClient();
+  
+  let query = supabase
     .from('consultation_notes')
     .select('*')
-    .eq('clinic_id', clinic_id)
-    .eq('patient_id', patient_id)
-    .order('created_at', { ascending: false });
+    .eq('clinic_id', clinic_id);
+  
+  if (patient_id) {
+    query = query.eq('patient_id', patient_id);
+  }
+  
+  return query.order('created_at', { ascending: false });
 }
 
 /**
@@ -273,6 +303,25 @@ export async function createVitalSign(
       clinic_id,
       ...data,
     })
+    .select()
+    .single();
+}
+
+/**
+ * Update vital sign record in clinic.
+ */
+export async function updateVitalSign(
+  clinic_id: string,
+  vital_sign_id: string,
+  data: Partial<Omit<VitalSigns, 'id'>>
+) {
+  const supabase = await createClient();
+  
+  return supabase
+    .from('vital_signs')
+    .update(data)
+    .eq('id', vital_sign_id)
+    .eq('clinic_id', clinic_id)
     .select()
     .single();
 }
@@ -409,16 +458,20 @@ export async function updatePrescription(
  */
 export async function getAttachments(
   clinic_id: string,
-  patient_id: string
+  patient_id?: string
 ) {
   const supabase = await createClient();
   
-  return supabase
+  let query = supabase
     .from('attachments')
     .select('*')
-    .eq('clinic_id', clinic_id)
-    .eq('patient_id', patient_id)
-    .order('uploaded_at', { ascending: false });
+    .eq('clinic_id', clinic_id);
+  
+  if (patient_id) {
+    query = query.eq('patient_id', patient_id);
+  }
+  
+  return query.order('uploaded_at', { ascending: false });
 }
 
 /**
@@ -527,15 +580,18 @@ export const dbQueries = {
   getPatientById,
   createPatient,
   updatePatient,
+  deletePatient,
   getAppointments,
   getAppointmentById,
   createAppointment,
   updateAppointment,
+  deleteAppointment,
   getConsultationNotes,
   createConsultationNote,
   updateConsultationNote,
   getVitalSigns,
   createVitalSign,
+  updateVitalSign,
   getMedicalHistory,
   createMedicalHistory,
   getVaccineRecords,
