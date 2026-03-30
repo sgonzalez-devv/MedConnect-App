@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
@@ -40,16 +40,51 @@ import {
   List,
   AlertTriangle,
 } from "lucide-react"
-import { getClinicPatients, getPatientAppointments, clinics } from "@/lib/mock-data"
+import { clinics } from "@/lib/mock-data"
 import { formatDateShort, calculateAge } from "@/lib/date-utils"
 import { getClinicColors } from "@/lib/theme-utils"
+import { useAuth } from "@/hooks/use-auth"
+import { toast } from "sonner"
+import { formatErrorMessage } from "@/lib/error-handling"
+import type { Patient } from "@/lib/types"
 
 export default function ClinicPatientsPage() {
   const params = useParams()
   const clinicId = params.clinicId as string
+  const { user } = useAuth()
   const clinic = clinics.find((c) => c.id === clinicId)
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchPatients() {
+      if (!user?.clinic_id) return
+
+      try {
+        setLoading(true)
+
+        const res = await fetch("/api/patients")
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.error || `HTTP ${res.status}`)
+        }
+
+        const json = await res.json()
+        setPatients(json.data || [])
+      } catch (err) {
+        const message = formatErrorMessage(err, "Fetching clinic patients")
+        toast.error(message)
+        console.error("Clinic patients fetch error:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPatients()
+  }, [user?.clinic_id])
 
   if (!clinic) {
     return (
@@ -63,7 +98,7 @@ export default function ClinicPatientsPage() {
 
   const clinicColors = getClinicColors(clinic.colorPalette.presetName)
 
-  const allPatients = getClinicPatients(clinicId)
+  const allPatients = patients
 
   const filteredPatients = allPatients.filter((patient) => {
     const fullName = `${patient.nombre} ${patient.apellido}`.toLowerCase()
@@ -147,7 +182,24 @@ export default function ClinicPatientsPage() {
         </Card>
 
         {/* Patients List/Grid */}
-        {viewMode === "list" ? (
+        {loading ? (
+          <Card className="card-hover overflow-hidden">
+            <CardContent className="p-6">
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-4 animate-pulse">
+                    <div className="h-10 w-10 rounded-full bg-muted" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-muted rounded w-40" />
+                      <div className="h-3 bg-muted rounded w-24" />
+                    </div>
+                    <div className="h-3 bg-muted rounded w-20" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : viewMode === "list" ? (
           <Card className="card-hover overflow-hidden">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -165,7 +217,6 @@ export default function ClinicPatientsPage() {
                   <TableBody>
                     {filteredPatients.map((patient) => {
                       const initials = `${patient.nombre[0]}${patient.apellido[0]}`
-                      const appointmentsCount = getPatientAppointments(patient.id).length
                       const age = calculateAge(patient.fechaNacimiento)
 
                       return (
@@ -215,13 +266,13 @@ export default function ClinicPatientsPage() {
                               <TooltipTrigger asChild>
                                 <div className="flex items-center gap-1.5 text-sm">
                                   <Calendar className="w-4 h-4 text-blue-600" />
-                                  <span className="font-medium">{appointmentsCount}</span>
+                                  <span className="font-medium">0</span>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
-                                {appointmentsCount === 0 
+                                {0 === 0 
                                   ? "Sin citas registradas" 
-                                  : `${appointmentsCount} citas en historial`}
+                                  : `0 citas en historial`}
                               </TooltipContent>
                             </Tooltip>
                           </TableCell>
@@ -264,7 +315,6 @@ export default function ClinicPatientsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredPatients.map((patient) => {
               const initials = `${patient.nombre[0]}${patient.apellido[0]}`
-              const appointmentsCount = getPatientAppointments(patient.id).length
               const age = calculateAge(patient.fechaNacimiento)
 
               return (
@@ -336,7 +386,7 @@ export default function ClinicPatientsPage() {
                         <TooltipTrigger asChild>
                           <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                             <Calendar className="w-4 h-4" />
-                            {appointmentsCount} citas
+                            0 citas
                           </span>
                         </TooltipTrigger>
                         <TooltipContent>Total de citas en el historial</TooltipContent>
