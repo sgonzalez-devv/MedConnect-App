@@ -1,8 +1,8 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useEffect } from "react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -37,16 +37,11 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react"
-import {
-  getPatientById,
-  getPatientAppointments,
-  getPatientConsultationNotes,
-  getPatientAttachments,
-  getPatientVitalSigns,
-  getPatientMedicalHistory,
-  getPatientVaccines,
-  whatsappConversations,
-} from "@/lib/mock-data"
+import { whatsappConversations } from "@/lib/mock-data"
+import { useAuth } from "@/hooks/use-auth"
+import { toast } from "sonner"
+import { formatErrorMessage } from "@/lib/error-handling"
+import type { Patient, Appointment, ConsultationNote, MedicalAttachment, VitalSigns, MedicalHistory, Vaccine } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
   programada: { label: "Programada", color: "bg-blue-100 text-blue-700" },
@@ -63,20 +58,107 @@ export default function PatientProfilePage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
+  const router = useRouter()
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState("resumen")
   const [medicalSubTab, setMedicalSubTab] = useState("signos")
+  const [patient, setPatient] = useState<Patient | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const patient = getPatientById(id)
-  if (!patient) {
-    notFound()
+  useEffect(() => {
+    async function fetchPatient() {
+      if (!user?.clinic_id) return
+
+      try {
+        setLoading(true)
+        setError(null)
+
+        const res = await fetch(`/api/patients/${id}`)
+
+        if (!res.ok) {
+          if (res.status === 404) {
+            setError("Paciente no encontrado")
+            return
+          }
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.error || `HTTP ${res.status}`)
+        }
+
+        const json = await res.json()
+        const patientData = json.data
+
+        // Verify clinic isolation (FE-06)
+        if (patientData.clinicId && patientData.clinicId !== user.clinic_id) {
+          toast.error("No tienes acceso a este paciente")
+          router.push("/pacientes")
+          return
+        }
+
+        setPatient(patientData)
+      } catch (err) {
+        const message = formatErrorMessage(err, "Fetching patient details")
+        setError(message)
+        toast.error(message)
+        console.error("Patient fetch error:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPatient()
+  }, [id, user?.clinic_id, router])
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-16 rounded-full bg-muted animate-pulse" />
+          <div className="space-y-2">
+            <div className="h-6 bg-muted rounded w-48 animate-pulse" />
+            <div className="h-4 bg-muted rounded w-32 animate-pulse" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="space-y-3 animate-pulse">
+                  <div className="h-4 bg-muted rounded w-24" />
+                  <div className="h-3 bg-muted rounded w-full" />
+                  <div className="h-3 bg-muted rounded w-3/4" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
   }
 
-  const appointments = getPatientAppointments(id)
-  const consultationNotes = getPatientConsultationNotes(id)
-  const attachments = getPatientAttachments(id)
-  const vitalSigns = getPatientVitalSigns(id)
-  const medicalHistory = getPatientMedicalHistory(id)
-  const vaccines = getPatientVaccines(id)
+  if (error || !patient) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <p className="text-muted-foreground mb-4">{error || "Paciente no encontrado"}</p>
+          <Button variant="outline" asChild>
+            <Link href="/pacientes">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver a Pacientes
+            </Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Related data - using empty arrays until dedicated endpoints are available
+  const appointments: Appointment[] = []
+  const consultationNotes: ConsultationNote[] = []
+  const attachments: MedicalAttachment[] = []
+  const vitalSigns: VitalSigns[] = []
+  const medicalHistory: MedicalHistory[] = []
+  const vaccines: Vaccine[] = []
   const conversations = whatsappConversations.filter((c) => c.pacienteId === id)
 
   const initials = `${patient.nombre[0]}${patient.apellido[0]}`
