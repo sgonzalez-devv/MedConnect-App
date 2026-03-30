@@ -61,12 +61,12 @@ Requirements for the Supabase integration milestone. Each maps to roadmap phases
 
 ### Frontend Integration
 
-- [ ] **FE-01**: Dashboard fetches real appointments from Supabase (not mock data)
-- [ ] **FE-02**: Patient list fetches from Supabase (not mock data)
+- [x] **FE-01**: Dashboard fetches real appointments from Supabase (not mock data)
+- [x] **FE-02**: Patient list fetches from Supabase (not mock data)
 - [ ] **FE-03**: Appointment calendar fetches from Supabase (not mock data)
-- [ ] **FE-04**: Patient profile pages fetch real data from Supabase
+- [x] **FE-04**: Patient profile pages fetch real data from Supabase
 - [ ] **FE-05**: Form submissions write to Supabase (not local state only)
-- [ ] **FE-06**: Clinic context is always verified against current user's clinics
+- [x] **FE-06**: Clinic context is always verified against current user's clinics
 
 ### Error Handling
 
@@ -165,12 +165,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-08 | Phase 3 | Complete |
 | API-09 | Phase 3 | Complete |
 | API-10 | Phase 3 | Complete |
-| FE-01 | Phase 3 | Pending |
-| FE-02 | Phase 3 | Pending |
+| FE-01 | Phase 3 | Complete |
+| FE-02 | Phase 3 | Complete |
 | FE-03 | Phase 3 | Pending |
-| FE-04 | Phase 3 | Pending |
+| FE-04 | Phase 3 | Complete |
 | FE-05 | Phase 3 | Pending |
-| FE-06 | Phase 3 | Pending |
+| FE-06 | Phase 3 | Complete |
 | ERR-01 | Phase 3 | Complete |
 | ERR-02 | Phase 3 | Complete |
 | ERR-03 | Phase 3 | Complete |
