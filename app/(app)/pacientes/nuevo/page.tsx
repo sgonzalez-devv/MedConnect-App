@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,12 +17,16 @@ import {
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ArrowLeft, CalendarIcon, Plus, X } from "lucide-react"
+import { ArrowLeft, CalendarIcon, Plus, X, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { useAuth } from "@/hooks/use-auth"
+import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
+import { toast } from "@/hooks/use-toast"
 
 export default function NewPatientPage() {
   const router = useRouter()
+  const { user, session, loading: authLoading, signOut } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [birthDate, setBirthDate] = useState<Date | undefined>()
   const [newAlergia, setNewAlergia] = useState("")
@@ -38,6 +42,12 @@ export default function NewPatientPage() {
     alergias: [] as string[],
     condicionesCronicas: [] as string[],
   })
+
+  useEffect(() => {
+    if (!authLoading && !session) {
+      router.push('/auth/login')
+    }
+  }, [authLoading, session, router])
 
   const handleAddAlergia = () => {
     if (newAlergia.trim() && !formData.alergias.includes(newAlergia.trim())) {
@@ -75,9 +85,84 @@ export default function NewPatientPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!session?.access_token || !user) {
+      toast({ title: 'Debes iniciar sesión para registrar un paciente' })
+      return
+    }
+
+    if (!formData.nombre || !formData.apellido || !formData.email || !formData.telefono || !formData.genero || !birthDate) {
+      toast({ title: 'Por favor completa todos los campos requeridos' })
+      return
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+      toast({ title: 'El formato del correo electrónico no es válido' })
+      return
+    }
+
+    // Validate birth date is in the past
+    if (birthDate > new Date()) {
+      toast({ title: 'La fecha de nacimiento debe ser en el pasado' })
+      return
+    }
+
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    router.push("/pacientes")
+
+    try {
+      const fechaNacimiento = `${birthDate.getFullYear()}-${(birthDate.getMonth() + 1).toString().padStart(2, "0")}-${birthDate.getDate().toString().padStart(2, "0")}`
+
+      const response = await fetch('/api/patients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          apellido: formData.apellido,
+          email: formData.email,
+          telefono: formData.telefono,
+          fechaNacimiento,
+          genero: formData.genero,
+          direccion: formData.direccion || undefined,
+          alergias: formData.alergias.length > 0 ? formData.alergias : undefined,
+          condicionesCronicas: formData.condicionesCronicas.length > 0 ? formData.condicionesCronicas : undefined,
+          grupoSanguineo: formData.grupoSanguineo || undefined,
+        }),
+      })
+
+      if (response.status === 401) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+
+      if (response.status === 403) {
+        toast({ title: 'No tienes permiso para registrar pacientes' })
+        return
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast({ title: formatErrorMessage(errorData) })
+        return
+      }
+
+      toast({ title: 'Paciente registrado exitosamente' })
+      router.push("/pacientes")
+    } catch (error) {
+      if (isAuthError(error)) {
+        await signOut()
+        router.push('/auth/login')
+        return
+      }
+      toast({ title: formatErrorMessage(error, 'Creating patient') })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -324,7 +409,12 @@ export default function NewPatientPage() {
                 className="bg-teal-600 hover:bg-teal-700 text-white"
                 disabled={isLoading}
               >
-                {isLoading ? "Guardando..." : "Registrar Paciente"}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Guardando...
+                  </>
+                ) : "Registrar Paciente"}
               </Button>
             </div>
           </form>
