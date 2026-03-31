@@ -1,8 +1,9 @@
-# ROADMAP: MedConnect v1.0 Supabase Connection
+# ROADMAP: MedConnect v1.1 Axios Integration
 
 **Created:** 2026-03-27  
-**Granularity:** Standard (5 phases recommended, 3 core phases for v1)  
-**Coverage:** 47/47 v1 requirements mapped ✓
+**Updated:** 2026-03-31  
+**Granularity:** Standard (4 phases for v1.1)  
+**Coverage:** 52/52 v1.1 requirements mapped ✓
 
 ---
 
@@ -11,6 +12,7 @@
 - [x] **Phase 1: Supabase Authentication & Session Management** - Users can securely sign up, log in, and maintain authenticated sessions with clinic context
 - [x] **Phase 2: Database Schema & Row-Level Security** - Multi-clinic data isolation enforced at database layer; clinic boundaries cannot be bypassed
 - [x] **Phase 3: API Service Layer & Frontend Integration** - Existing UI connected to persistent backend; all CRUD operations work against real Supabase tables
+- [ ] **Phase 4: Axios HTTP Client Integration** - Replace native fetch with Axios for unified HTTP client with interceptors, automatic retries, and consistent error handling
 
 ---
 
@@ -85,6 +87,28 @@
 
 ---
 
+### Phase 4: Axios HTTP Client Integration
+
+**Goal:** Replace native fetch with Axios for unified HTTP client with interceptors, automatic retries, and consistent error handling across all API calls.
+
+**Depends on:** Phase 3 (API service layer must be working before migrating to Axios)
+
+**Requirements:** AXIOS-01, AXIOS-02, AXIOS-03, AXIOS-04, AXIOS-05
+
+**Success Criteria** (what must be TRUE):
+1. Axios installed and configured as the primary HTTP client
+2. Request interceptor automatically attaches auth token from session
+3. Response interceptor handles 401 (session expired) and 403 (clinic isolation) uniformly
+4. Automatic retry logic for transient network failures (5xx, timeout)
+5. All existing fetch-based API calls migrated to axios calls without breaking functionality
+6. TypeScript types support axios responses with proper typing
+
+**Plans:** TBD
+
+**UI hint**: no
+
+---
+
 ## Progress Table
 
 | Phase | Plans Complete | Status | Completed |
@@ -92,6 +116,7 @@
 | 1. Supabase Authentication & Session Management | 2/2 | Complete ✓ | 2026-03-27 |
 | 2. Database Schema & Row-Level Security | 4/4 | Complete ✓ | 2026-03-30 |
 | 3. API Service Layer & Frontend Integration | 2/4 | In Progress | - |
+| 4. Axios HTTP Client Integration | 0/0 | Planned | - |
 
 ---
 
@@ -119,7 +144,14 @@
 - FE-01 through FE-06: Frontend integration (dashboard, lists, forms, clinic context)
 - ERR-01 through ERR-05: Error handling and user feedback
 
-**Total Coverage:** 47/47 v1 requirements mapped ✓
+**Phase 4 (5 requirements):**
+- AXIOS-01: Axios installation and base configuration
+- AXIOS-02: Request interceptor for auth token attachment
+- AXIOS-03: Response interceptor for error handling
+- AXIOS-04: Automatic retry logic for transient failures
+- AXIOS-05: Migration of existing fetch calls to axios
+
+**Total Coverage:** 52/52 requirements mapped ✓
 
 ---
 
@@ -131,9 +163,11 @@ Phase 1: Auth
 Phase 2: Schema + RLS
     ↓ (security must be proven)
 Phase 3: API + Frontend
-    ↓ (all 47 v1 requirements complete)
+    ↓ (API layer must work)
+Phase 4: Axios Integration
+    ↓ (unified HTTP client)
     
-v1.0 Complete ✓
+v1.1 Complete ✓
 ```
 
 ---
@@ -141,10 +175,11 @@ v1.0 Complete ✓
 ## Key Assumptions
 
 1. **Research recommendations applied:** Phase structure derived from research SUMMARY.md but constrained to v1 requirements only
-2. **Three core phases:** All 47 v1 requirements fit into Auth → Schema → API phases; optional Realtime (Phase 4) and Advanced (Phase 5) deferred to v2
-3. **Each phase independently implementable:** Phase 1 can be built/tested in 1-2 weeks; Phase 2 builds on Phase 1; Phase 3 builds on Phase 2
+2. **Four phases for v1:** Auth → Schema → API → Axios Integration; Realtime (Phase 5) deferred to v2
+3. **Each phase independently implementable:** Phase 1 can be built/tested in 1-2 weeks; Phase 2 builds on Phase 1; Phase 3 builds on Phase 2; Phase 4 builds on Phase 3
 4. **Defense-in-depth pattern:** App-level clinic_id filtering required in all Phase 3 queries (Layer 1); RLS provides backup enforcement (Layer 2)
 5. **No legacy data:** Starting with clean Supabase databases; no migration from mock data
+6. **Axios for HTTP:** Replace native fetch with Axios for better interceptor support, automatic retries, and consistent error handling
 
 ---
 
@@ -164,10 +199,12 @@ v1.0 Complete ✓
 
 - **Research confidence:** HIGH — All recommendations grounded in official Supabase, Next.js, and HIPAA documentation
 - **HIPAA compliance:** Clinic isolation enforced at RLS layer (Phase 2); Business Associate Agreement with Supabase needed before production
-- **Realtime deferral:** Phase 4 (optional) for real-time subscriptions; medical app functions with polling for v1
+- **Realtime deferral:** Phase 5 (optional) for real-time subscriptions; medical app functions with polling for v1
 - **Schema flexibility:** 17 core entities prepared in research; Phase 2 can add/remove tables without impacting Phase 1 or 3
+- **Axios migration:** Phase 4 migrates from native fetch to Axios for better developer experience and reliability
 
 ---
 
 *Roadmap created: 2026-03-27*  
-*Ready for phase planning via `/gsd-plan-phase 1`*
+*Updated: 2026-03-31 (Phase 4: Axios Integration added)*  
+*Ready for phase planning via `/gsd-plan-phase 4`*
