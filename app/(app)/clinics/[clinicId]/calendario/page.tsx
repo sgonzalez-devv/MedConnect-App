@@ -38,7 +38,8 @@ import {
 import { formatDateWithWeekday, formatDateShort } from "@/lib/date-utils"
 import { getClinicColors } from "@/lib/theme-utils"
 import { useAuth } from "@/hooks/use-auth"
-import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
+import { formatErrorMessage } from "@/lib/error-handling"
+import { apiClient } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 import type { Appointment, Patient } from "@/lib/types"
 
@@ -68,7 +69,7 @@ export default function ClinicCalendarPage() {
   const router = useRouter()
   const params = useParams()
   const clinicId = params.clinicId as string
-  const { user, session, loading: authLoading, signOut } = useAuth()
+  const { user } = useAuth()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [view, setView] = useState<"day" | "week">("day")
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -76,92 +77,42 @@ export default function ClinicCalendarPage() {
   const [isLoading, setIsLoading] = useState(true)
   const clinicColors = getClinicColors("teal")
 
-  // Verify user has access to this clinic
-  useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login')
-        return
-      }
-      if (user?.clinic_id && user.clinic_id !== clinicId) {
-        toast({ title: 'No tienes acceso a esta clínica' })
-        router.push('/clinics')
-        return
-      }
-    }
-  }, [authLoading, session, user, clinicId, router])
-
   // Fetch appointments from API
   const fetchAppointments = useCallback(async () => {
-    if (!session?.access_token) return
-
     try {
       setIsLoading(true)
-      const response = await fetch('/api/appointments', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (response.status === 401) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
-
-      if (!response.ok) {
-        const error = await response.json()
-        toast({ title: formatErrorMessage(error) })
-        return
-      }
-
-      const result = await response.json()
-      setAppointments(result.data || [])
+      const { data } = await apiClient.get('/api/appointments')
+      setAppointments(data?.data || [])
     } catch (error) {
-      if (isAuthError(error)) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
       toast({ title: formatErrorMessage(error, 'Fetching appointments') })
     } finally {
       setIsLoading(false)
     }
-  }, [session, signOut, router])
+  }, [])
 
   // Fetch patients for display names
   const fetchPatients = useCallback(async () => {
-    if (!session?.access_token) return
-
     try {
-      const response = await fetch('/api/patients', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        setPatients(result.data || [])
-      }
+      const { data } = await apiClient.get('/api/patients')
+      setPatients(data?.data || [])
     } catch {
       // Silently fail
     }
-  }, [session])
+  }, [])
 
   useEffect(() => {
-    if (!authLoading && session) {
+    if (user) {
       fetchAppointments()
       fetchPatients()
     }
-  }, [authLoading, session, fetchAppointments, fetchPatients])
+  }, [user, fetchAppointments, fetchPatients])
 
   // Join appointments with patient data
   const patientMap = new Map(patients.map(p => [p.id, p]))
   const allAppointments = appointments.map(apt => ({
     ...apt,
-    paciente: apt.pacienteId ? patientMap.get(apt.pacienteId) : undefined,
-  })).filter(apt => apt.paciente) as (Appointment & { paciente: Patient })[]
+    patient: apt.patient_id ? patientMap.get(apt.patient_id) : undefined,
+  })).filter(apt => apt.patient) as (Appointment & { patient: Patient })[]
 
   // Format date consistently
   const formatDateStr = (date: Date) => {
@@ -179,17 +130,11 @@ export default function ClinicCalendarPage() {
 
   // Sort by time
   const sortedAppointments = [...filteredAppointments].sort((a, b) =>
-    a.hora.localeCompare(b.hora)
+    (a.hora ?? '').localeCompare(b.hora ?? '')
   )
 
-  // Get dates that have appointments with their types
-  const appointmentsByDate = allAppointments.reduce((acc, apt) => {
-    if (!acc[apt.fecha]) {
-      acc[apt.fecha] = new Set<string>()
-    }
-    acc[apt.fecha].add(apt.tipo)
-    return acc
-  }, {} as Record<string, Set<string>>)
+  // Get dates that have appointments
+  const appointmentDates = new Set(allAppointments.map(apt => apt.fecha))
 
   const navigateDate = (direction: "prev" | "next") => {
     const newDate = new Date(selectedDate)
@@ -242,7 +187,7 @@ export default function ClinicCalendarPage() {
   const today = new Date()
   const todayStr = formatDateStr(today)
 
-  if (authLoading || isLoading) {
+  if (isLoading) {
     return (
       <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -317,13 +262,7 @@ export default function ClinicCalendarPage() {
                   const dateStr = formatDateStr(date)
                   const isSelected = dateStr === selectedDateStr
                   const isToday = dateStr === todayStr
-                  const appointmentTypes = appointmentsByDate[dateStr]
-                  const hasAppointments = !!appointmentTypes
-                  
-                  // Get unique types for this date (up to 4 dots)
-                  const typeColors = hasAppointments 
-                    ? Array.from(appointmentTypes).slice(0, 4).map(tipo => tipoConfig[tipo]?.color || "bg-blue-500")
-                    : []
+                  const hasAppointments = appointmentDates.has(dateStr)
                   
                   return (
                     <Tooltip key={idx}>
@@ -343,21 +282,14 @@ export default function ClinicCalendarPage() {
                           {date.getDate()}
                           {hasAppointments && !isSelected && (
                             <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
-                              {typeColors.map((color, i) => (
-                                <span key={i} className={`w-1.5 h-1.5 rounded-full ${color}`} />
-                              ))}
+                              <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
                             </span>
                           )}
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>
                         {formatDateShort(date)}
-                        {hasAppointments && (
-                          <>
-                            {" - "}
-                            {Array.from(appointmentTypes).map(t => tipoConfig[t]?.label).join(", ")}
-                          </>
-                        )}
+                        {hasAppointments && " - Tiene citas"}
                       </TooltipContent>
                     </Tooltip>
                   )
@@ -470,7 +402,7 @@ export default function ClinicCalendarPage() {
                      <AppointmentCard
                        key={appointment.id}
                        appointment={appointment}
-                       patient={appointment.paciente}
+                       patient={appointment.patient}
                        clinicId={clinicId}
                      />
                   ))}
@@ -524,7 +456,7 @@ function AppointmentCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-medium text-foreground truncate group-hover:text-teal-700 transition-colors duration-200">
-                {patient.nombre} {patient.apellido}
+                {patient.full_name}
               </p>
               {appointment.creadoPorBot && (
                 <Tooltip>

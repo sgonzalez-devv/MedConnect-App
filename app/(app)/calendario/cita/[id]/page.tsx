@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState, useEffect, useCallback } from "react"
+import { use, useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,6 +24,8 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
+import { apiClient } from "@/lib/api-client"
+import { formatErrorMessage } from "@/lib/error-handling"
 import type { Appointment, Patient } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
@@ -42,54 +44,33 @@ export default function AppointmentDetailPage({
 }) {
   const { id } = use(params)
   const router = useRouter()
-  const { session } = useAuth()
+  useAuth()
   const [appointment, setAppointment] = useState<Appointment | null>(null)
   const [patient, setPatient] = useState<Patient | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
 
-  const authHeaders = useCallback(() => ({
-    'Authorization': `Bearer ${session?.access_token}`,
-    'Content-Type': 'application/json',
-  }), [session?.access_token])
-
   useEffect(() => {
     async function fetchData() {
-      if (!session?.access_token) return
-
       try {
         setLoading(true)
         setError(null)
 
-        const aptRes = await fetch(`/api/appointments/${id}`, {
-          headers: authHeaders(),
-        })
-
-        if (!aptRes.ok) {
-          if (aptRes.status === 404) {
-            setError("Cita no encontrada")
-            return
-          }
-          const errData = await aptRes.json().catch(() => ({}))
-          throw new Error(errData.error || `HTTP ${aptRes.status}`)
-        }
-
-        const aptJson = await aptRes.json()
+        const { data: aptJson } = await apiClient.get(`/api/appointments/${id}`)
         const aptData: Appointment = aptJson.data
         setAppointment(aptData)
 
         if (aptData.patient_id) {
-          const patRes = await fetch(`/api/patients/${aptData.patient_id}`, {
-            headers: authHeaders(),
-          })
-          if (patRes.ok) {
-            const patJson = await patRes.json()
+          try {
+            const { data: patJson } = await apiClient.get(`/api/patients/${aptData.patient_id}`)
             setPatient(patJson.data)
+          } catch {
+            // Patient fetch failed silently — appointment still shows
           }
         }
-      } catch (err: any) {
-        const message = err.message || "Error al cargar la cita"
+      } catch (err) {
+        const message = formatErrorMessage(err, "Fetching appointment")
         setError(message)
         toast.error(message)
       } finally {
@@ -98,29 +79,18 @@ export default function AppointmentDetailPage({
     }
 
     fetchData()
-  }, [id, session?.access_token, authHeaders])
+  }, [id])
 
   const updateStatus = async (newStatus: string) => {
-    if (!appointment || !session?.access_token) return
+    if (!appointment) return
 
     try {
       setUpdating(true)
-      const res = await fetch(`/api/appointments/${id}`, {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify({ status: newStatus }),
-      })
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || `HTTP ${res.status}`)
-      }
-
-      const json = await res.json()
-      setAppointment(json.data)
+      const { data } = await apiClient.patch(`/api/appointments/${id}`, { status: newStatus })
+      setAppointment(data.data)
       toast.success("Estado actualizado")
-    } catch (err: any) {
-      toast.error(err.message || "Error al actualizar")
+    } catch (err) {
+      toast.error(formatErrorMessage(err, "Updating appointment"))
     } finally {
       setUpdating(false)
     }

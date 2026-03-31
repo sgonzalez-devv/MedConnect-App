@@ -9,42 +9,42 @@ Requirements for the Supabase integration milestone. Each maps to roadmap phases
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can sign up with email and password
-- [ ] **AUTH-02**: User receives email verification after signup
-- [ ] **AUTH-03**: User can log in with email and password
-- [ ] **AUTH-04**: User can reset password via email link
-- [ ] **AUTH-05**: User session persists across browser refresh
-- [ ] **AUTH-06**: User session expires after 7 days of inactivity
-- [ ] **AUTH-07**: User can log out (clears session and JWT)
+- [x] **AUTH-01**: User can sign up with email and password
+- [x] **AUTH-02**: User receives email verification after signup
+- [x] **AUTH-03**: User can log in with email and password
+- [x] **AUTH-04**: User can reset password via email link
+- [x] **AUTH-05**: User session persists across browser refresh
+- [x] **AUTH-06**: User session expires after 7 days of inactivity
+- [x] **AUTH-07**: User can log out (clears session and JWT)
 
 ### User Management
 
-- [ ] **USER-01**: User profile stores clinic assignment(s)
-- [ ] **USER-02**: User has role assignment (admin/doctor/staff)
-- [ ] **USER-03**: User clinic context is verified server-side (not client-selectable)
-- [ ] **USER-04**: User can view own profile
+- [x] **USER-01**: User profile stores clinic assignment(s)
+- [x] **USER-02**: User has role assignment (admin/doctor/staff)
+- [x] **USER-03**: User clinic context is verified server-side (not client-selectable)
+- [x] **USER-04**: User can view own profile
 
 ### Data Persistence - Core Tables
 
-- [ ] **DATA-01**: Clinics data persists in Supabase
-- [ ] **DATA-02**: Patients data persists per clinic with clinic isolation
-- [ ] **DATA-03**: Doctor profiles persist per clinic
-- [ ] **DATA-04**: Appointments persist per clinic with clinic isolation
-- [ ] **DATA-05**: Consultation notes persist per clinic with clinic isolation
-- [ ] **DATA-06**: Vital signs persist per patient with clinic isolation
-- [ ] **DATA-07**: Medical history persists per patient with clinic isolation
-- [ ] **DATA-08**: Vaccine records persist per patient with clinic isolation
-- [ ] **DATA-09**: Medical attachments persist per clinic with clinic isolation
-- [ ] **DATA-10**: Prescriptions persist per clinic with clinic isolation
+- [x] **DATA-01**: Clinics data persists in Supabase
+- [x] **DATA-02**: Patients data persists per clinic with clinic isolation
+- [x] **DATA-03**: Doctor profiles persist per clinic
+- [x] **DATA-04**: Appointments persist per clinic with clinic isolation
+- [x] **DATA-05**: Consultation notes persist per clinic with clinic isolation
+- [x] **DATA-06**: Vital signs persist per patient with clinic isolation
+- [x] **DATA-07**: Medical history persists per patient with clinic isolation
+- [x] **DATA-08**: Vaccine records persist per patient with clinic isolation
+- [x] **DATA-09**: Medical attachments persist per clinic with clinic isolation
+- [x] **DATA-10**: Prescriptions persist per clinic with clinic isolation
 
 ### Data Isolation & Security
 
-- [ ] **ISOL-01**: Row-Level Security (RLS) policies enforce clinic boundaries on all tables
-- [ ] **ISOL-02**: RLS policies verify user role before allowing read access
-- [ ] **ISOL-03**: RLS policies verify user role before allowing write access
-- [ ] **ISOL-04**: User cannot query data from clinics they don't belong to
-- [ ] **ISOL-05**: Doctor cannot see patients from other clinics
-- [ ] **ISOL-06**: Staff cannot modify records outside their clinic
+- [x] **ISOL-01**: Row-Level Security (RLS) policies enforce clinic boundaries on all tables
+- [x] **ISOL-02**: RLS policies verify user role before allowing read access
+- [x] **ISOL-03**: RLS policies verify user role before allowing write access
+- [x] **ISOL-04**: User cannot query data from clinics they don't belong to
+- [x] **ISOL-05**: Doctor cannot see patients from other clinics
+- [x] **ISOL-06**: Staff cannot modify records outside their clinic
 
 ### API Service Layer
 
@@ -128,33 +128,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
-| AUTH-05 | Phase 1 | Pending |
-| AUTH-06 | Phase 1 | Pending |
-| AUTH-07 | Phase 1 | Pending |
-| USER-01 | Phase 1 | Pending |
-| USER-02 | Phase 1 | Pending |
-| USER-03 | Phase 1 | Pending |
-| USER-04 | Phase 1 | Pending |
-| DATA-01 | Phase 2 | Pending |
-| DATA-02 | Phase 2 | Pending |
-| DATA-03 | Phase 2 | Pending |
-| DATA-04 | Phase 2 | Pending |
-| DATA-05 | Phase 2 | Pending |
-| DATA-06 | Phase 2 | Pending |
-| DATA-07 | Phase 2 | Pending |
-| DATA-08 | Phase 2 | Pending |
-| DATA-09 | Phase 2 | Pending |
-| DATA-10 | Phase 2 | Pending |
-| ISOL-01 | Phase 2 | Pending |
-| ISOL-02 | Phase 2 | Pending |
-| ISOL-03 | Phase 2 | Pending |
-| ISOL-04 | Phase 2 | Pending |
-| ISOL-05 | Phase 2 | Pending |
-| ISOL-06 | Phase 2 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
+| AUTH-04 | Phase 1 | Complete |
+| AUTH-05 | Phase 1 | Complete |
+| AUTH-06 | Phase 1 | Complete |
+| AUTH-07 | Phase 1 | Complete |
+| USER-01 | Phase 1 | Complete |
+| USER-02 | Phase 1 | Complete |
+| USER-03 | Phase 1 | Complete |
+| USER-04 | Phase 1 | Complete |
+| DATA-01 | Phase 2 | Complete |
+| DATA-02 | Phase 2 | Complete |
+| DATA-03 | Phase 2 | Complete |
+| DATA-04 | Phase 2 | Complete |
+| DATA-05 | Phase 2 | Complete |
+| DATA-06 | Phase 2 | Complete |
+| DATA-07 | Phase 2 | Complete |
+| DATA-08 | Phase 2 | Complete |
+| DATA-09 | Phase 2 | Complete |
+| DATA-10 | Phase 2 | Complete |
+| ISOL-01 | Phase 2 | Complete |
+| ISOL-02 | Phase 2 | Complete |
+| ISOL-03 | Phase 2 | Complete |
+| ISOL-04 | Phase 2 | Complete |
+| ISOL-05 | Phase 2 | Complete |
+| ISOL-06 | Phase 2 | Complete |
 | API-01 | Phase 3 | Complete |
 | API-02 | Phase 3 | Complete |
 | API-03 | Phase 3 | Complete |

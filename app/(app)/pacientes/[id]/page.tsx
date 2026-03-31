@@ -40,6 +40,7 @@ import {
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { formatErrorMessage } from "@/lib/error-handling"
+import { apiClient } from "@/lib/api-client"
 import type { Patient, Appointment, ConsultationNote, VitalSigns, MedicalHistory, VaccineRecord } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
@@ -58,7 +59,7 @@ export default function PatientProfilePage({
 }) {
   const { id } = use(params)
   const router = useRouter()
-  const { user, session } = useAuth()
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState("resumen")
   const [medicalSubTab, setMedicalSubTab] = useState("signos")
   const [patient, setPatient] = useState<Patient | null>(null)
@@ -73,26 +74,11 @@ export default function PatientProfilePage({
         setLoading(true)
         setError(null)
 
-        const res = await fetch(`/api/patients/${id}`, {
-          headers: {
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-        })
-
-        if (!res.ok) {
-          if (res.status === 404) {
-            setError("Paciente no encontrado")
-            return
-          }
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error || `HTTP ${res.status}`)
-        }
-
-        const json = await res.json()
-        const patientData = json.data
+        const { data } = await apiClient.get(`/api/patients/${id}`)
+        const patientData = data?.data
 
         // Verify clinic isolation (FE-06)
-        if (patientData.clinicId && patientData.clinicId !== user.clinic_id) {
+        if (patientData?.clinicId && patientData.clinicId !== user.clinic_id) {
           toast.error("No tienes acceso a este paciente")
           router.push("/pacientes")
           return
@@ -110,7 +96,7 @@ export default function PatientProfilePage({
     }
 
     fetchPatient()
-  }, [id, user?.clinic_id, session?.access_token, router])
+  }, [id, user?.clinic_id, router])
 
   if (loading) {
     return (

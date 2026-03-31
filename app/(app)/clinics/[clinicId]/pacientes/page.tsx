@@ -46,6 +46,7 @@ import { getClinicColors } from "@/lib/theme-utils"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { formatErrorMessage } from "@/lib/error-handling"
+import { apiClient } from "@/lib/api-client"
 import type { Patient } from "@/lib/types"
 
 export default function ClinicPatientsPage() {
@@ -65,15 +66,8 @@ export default function ClinicPatientsPage() {
       try {
         setLoading(true)
 
-        const res = await fetch("/api/patients")
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error || `HTTP ${res.status}`)
-        }
-
-        const json = await res.json()
-        setPatients(json.data || [])
+        const { data } = await apiClient.get("/api/patients")
+        setPatients(data?.data || [])
       } catch (err) {
         const message = formatErrorMessage(err, "Fetching clinic patients")
         toast.error(message)
@@ -98,15 +92,13 @@ export default function ClinicPatientsPage() {
 
   const clinicColors = getClinicColors(clinic.colorPalette.presetName)
 
-  const allPatients = patients
-
-  const filteredPatients = allPatients.filter((patient) => {
-    const fullName = `${patient.nombre} ${patient.apellido}`.toLowerCase()
+  const filteredPatients = patients.filter((patient) => {
+    const fullName = (patient.full_name || '').toLowerCase()
     const query = searchQuery.toLowerCase()
     return (
       fullName.includes(query) ||
-      patient.email.toLowerCase().includes(query) ||
-      patient.telefono.includes(query)
+      (patient.email || '').toLowerCase().includes(query) ||
+      (patient.phone || '').includes(query)
     )
   })
 
@@ -118,7 +110,7 @@ export default function ClinicPatientsPage() {
           <div className={`border-l-4 pl-4 ${clinicColors.borderL}`}>
             <h1 className="text-2xl font-bold text-foreground">Pacientes - {clinic.name}</h1>
             <p className="text-muted-foreground">
-              {allPatients.length} pacientes registrados en esta clínica
+              {patients.length} pacientes registrados en esta clínica
             </p>
           </div>
           <Tooltip>
@@ -216,8 +208,8 @@ export default function ClinicPatientsPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredPatients.map((patient) => {
-                      const initials = `${patient.nombre[0]}${patient.apellido[0]}`
-                      const age = calculateAge(patient.fechaNacimiento)
+                      const initials = `${patient.full_name?.[0] ?? "?"}${patient.full_name?.split(" ")?.[1]?.[0] ?? ""}`
+                      const age = calculateAge(patient.date_of_birth ?? "")
 
                       return (
                         <TableRow 
@@ -236,10 +228,10 @@ export default function ClinicPatientsPage() {
                               </Avatar>
                               <div>
                                 <p className="font-medium text-foreground group-hover:text-teal-700 transition-colors duration-200">
-                                  {patient.nombre} {patient.apellido}
+                                  {patient.full_name}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {age} años · {patient.genero === "masculino" ? "Masculino" : "Femenino"}
+                                  {age} años · {patient.gender === "masculino" ? "Masculino" : "Femenino"}
                                 </p>
                               </div>
                             </Link>
@@ -248,7 +240,7 @@ export default function ClinicPatientsPage() {
                             <div className="space-y-1">
                               <div className="flex items-center gap-2 text-sm">
                                 <Phone className="w-3.5 h-3.5 text-teal-600" />
-                                <span>{patient.telefono}</span>
+                                <span>{patient.phone}</span>
                               </div>
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Mail className="w-3.5 h-3.5" />
@@ -258,7 +250,7 @@ export default function ClinicPatientsPage() {
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
                             <Badge variant="outline" className="font-mono bg-red-50 text-red-700 border-red-200">
-                              {patient.grupoSanguineo}
+                              {"—"}
                             </Badge>
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
@@ -277,7 +269,7 @@ export default function ClinicPatientsPage() {
                             </Tooltip>
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm hidden md:table-cell">
-                            {formatDateShort(patient.fechaRegistro)}
+                            {formatDateShort(patient.created_at)}
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>
@@ -314,8 +306,8 @@ export default function ClinicPatientsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredPatients.map((patient) => {
-              const initials = `${patient.nombre[0]}${patient.apellido[0]}`
-              const age = calculateAge(patient.fechaNacimiento)
+              const initials = `${patient.full_name?.[0] ?? "?"}${patient.full_name?.split(" ")?.[1]?.[0] ?? ""}`
+              const age = calculateAge(patient.date_of_birth ?? "")
 
               return (
                 <Card key={patient.id} className="card-hover group">
@@ -332,22 +324,22 @@ export default function ClinicPatientsPage() {
                              href={`/clinics/${clinicId}/pacientes/${patient.id}`}
                              className="font-medium text-foreground hover:text-teal-700 transition-colors duration-200"
                            >
-                            {patient.nombre} {patient.apellido}
+                            {patient.full_name}
                           </Link>
                           <p className="text-sm text-muted-foreground">
-                            {age} años · {patient.genero === "masculino" ? "M" : "F"}
+                            {age} años · {patient.gender === "masculino" ? "M" : "F"}
                           </p>
                         </div>
                       </div>
                       <Badge variant="outline" className="font-mono bg-red-50 text-red-700 border-red-200">
-                        {patient.grupoSanguineo}
+                        {"—"}
                       </Badge>
                     </div>
 
                     <div className="space-y-2 text-sm mb-4">
                       <div className="flex items-center gap-2">
                         <Phone className="w-4 h-4 text-teal-600" />
-                        <span>{patient.telefono}</span>
+                        <span>{patient.phone}</span>
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Mail className="w-4 h-4" />
@@ -355,19 +347,19 @@ export default function ClinicPatientsPage() {
                       </div>
                     </div>
 
-                    {patient.alergias.length > 0 && (
+                    {false && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex flex-wrap gap-1.5 mb-4">
                             <AlertTriangle className="w-4 h-4 text-amber-600" />
-                            {patient.alergias.slice(0, 2).map((alergia) => (
+                            {([]).map((alergia: string) => (
                               <Badge key={alergia} variant="destructive" className="text-xs bg-amber-100 text-amber-800 hover:bg-amber-200">
                                 {alergia}
                               </Badge>
                             ))}
-                            {patient.alergias.length > 2 && (
+                            {false && (
                               <Badge variant="secondary" className="text-xs">
-                                +{patient.alergias.length - 2}
+                                +{0}
                               </Badge>
                             )}
                           </div>
@@ -375,7 +367,7 @@ export default function ClinicPatientsPage() {
                         <TooltipContent>
                           <p className="font-medium mb-1">Alergias registradas:</p>
                           <ul className="text-sm">
-                            {patient.alergias.map(a => <li key={a}>• {a}</li>)}
+                            {[].map(a => <li key={a}>• {a}</li>)}
                           </ul>
                         </TooltipContent>
                       </Tooltip>

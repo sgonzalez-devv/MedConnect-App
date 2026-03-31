@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -37,7 +36,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { formatDateWithWeekday, formatDateShort } from "@/lib/date-utils"
 import { useAuth } from "@/hooks/use-auth"
-import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
+import { formatErrorMessage } from "@/lib/error-handling"
+import { apiClient } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 import type { Appointment, Patient } from "@/lib/types"
 
@@ -57,8 +57,7 @@ const MESES = [
 ]
 
 export default function CalendarPage() {
-  const router = useRouter()
-  const { user, session, loading: authLoading, signOut } = useAuth()
+  const { user } = useAuth()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [view, setView] = useState<"day" | "week">("day")
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -67,70 +66,33 @@ export default function CalendarPage() {
 
   // Fetch appointments from API
   const fetchAppointments = useCallback(async () => {
-    if (!session?.access_token) return
-
     try {
       setIsLoading(true)
-      const response = await fetch('/api/appointments', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (response.status === 401) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
-
-      if (!response.ok) {
-        const error = await response.json()
-        toast({ title: formatErrorMessage(error) })
-        return
-      }
-
-      const result = await response.json()
-      setAppointments(result.data || [])
+      const { data } = await apiClient.get('/api/appointments')
+      setAppointments(data?.data || [])
     } catch (error) {
-      if (isAuthError(error)) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
       toast({ title: formatErrorMessage(error, 'Fetching appointments') })
     } finally {
       setIsLoading(false)
     }
-  }, [session, signOut, router])
+  }, [])
 
   // Fetch patients for display names
   const fetchPatients = useCallback(async () => {
-    if (!session?.access_token) return
-
     try {
-      const response = await fetch('/api/patients', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        setPatients(result.data || [])
-      }
+      const { data } = await apiClient.get('/api/patients')
+      setPatients(data?.data || [])
     } catch {
       // Silently fail - patient names won't show but appointments still work
     }
-  }, [session])
+  }, [])
 
   useEffect(() => {
-    if (!authLoading && session) {
+    if (user) {
       fetchAppointments()
       fetchPatients()
-    } else if (!authLoading && !session) {
-      router.push('/auth/login')
     }
-  }, [authLoading, session, fetchAppointments, fetchPatients, router])
+  }, [user, fetchAppointments, fetchPatients])
 
   // Join appointments with patient data
   const patientMap = new Map(patients.map(p => [p.id, p]))
@@ -212,7 +174,7 @@ export default function CalendarPage() {
   const today = new Date()
   const todayStr = formatDateStr(today)
 
-  if (authLoading || isLoading) {
+  if (isLoading) {
     return (
       <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
         <div className="text-center">

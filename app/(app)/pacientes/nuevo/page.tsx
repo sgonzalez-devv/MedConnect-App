@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,12 +20,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ArrowLeft, CalendarIcon, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
-import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
+import { formatErrorMessage } from "@/lib/error-handling"
+import { apiClient } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 
 export default function NewPatientPage() {
   const router = useRouter()
-  const { user, session, loading: authLoading, signOut } = useAuth()
+  const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [birthDate, setBirthDate] = useState<Date | undefined>()
   const [formData, setFormData] = useState({
@@ -36,16 +37,10 @@ export default function NewPatientPage() {
     address: "",
   })
 
-  useEffect(() => {
-    if (!authLoading && !session) {
-      router.push('/auth/login')
-    }
-  }, [authLoading, session, router])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!session?.access_token || !user) {
+    if (!user) {
       toast({ title: 'Debes iniciar sesión para registrar un paciente' })
       return
     }
@@ -73,47 +68,18 @@ export default function NewPatientPage() {
     try {
       const dateOfBirth = `${birthDate.getFullYear()}-${(birthDate.getMonth() + 1).toString().padStart(2, "0")}-${birthDate.getDate().toString().padStart(2, "0")}`
 
-      const response = await fetch('/api/patients', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          full_name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          date_of_birth: dateOfBirth,
-          gender: formData.gender,
-          address: formData.address || undefined,
-        }),
+      await apiClient.post('/api/patients', {
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        date_of_birth: dateOfBirth,
+        gender: formData.gender,
+        address: formData.address || undefined,
       })
-
-      if (response.status === 401) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
-
-      if (response.status === 403) {
-        toast({ title: 'No tienes permiso para registrar pacientes' })
-        return
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        toast({ title: formatErrorMessage(errorData) })
-        return
-      }
 
       toast({ title: 'Paciente registrado exitosamente' })
       router.push("/pacientes")
     } catch (error) {
-      if (isAuthError(error)) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
       toast({ title: formatErrorMessage(error, 'Creating patient') })
     } finally {
       setIsLoading(false)

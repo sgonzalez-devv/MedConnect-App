@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,14 +22,15 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { getClinicColors } from "@/lib/theme-utils"
 import { useAuth } from "@/hooks/use-auth"
-import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
+import { formatErrorMessage } from "@/lib/error-handling"
+import { apiClient } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 
 export default function ClinicNewPatientPage() {
   const router = useRouter()
   const params = useParams()
   const clinicId = params.clinicId as string
-  const { user, session, loading: authLoading, signOut } = useAuth()
+  const { user } = useAuth()
   const clinicColors = getClinicColors("teal")
 
   const [isLoading, setIsLoading] = useState(false)
@@ -48,59 +49,32 @@ export default function ClinicNewPatientPage() {
     condicionesCronicas: [] as string[],
   })
 
-  // Verify user has access to this clinic
-  useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login')
-        return
-      }
-      if (user?.clinic_id && user.clinic_id !== clinicId) {
-        toast({ title: 'No tienes acceso a esta clínica' })
-        router.push('/clinics')
-        return
-      }
-    }
-  }, [authLoading, session, user, clinicId, router])
-
   const handleAddAlergia = () => {
     if (newAlergia.trim() && !formData.alergias.includes(newAlergia.trim())) {
-      setFormData({
-        ...formData,
-        alergias: [...formData.alergias, newAlergia.trim()],
-      })
+      setFormData({ ...formData, alergias: [...formData.alergias, newAlergia.trim()] })
       setNewAlergia("")
     }
   }
 
   const handleRemoveAlergia = (alergia: string) => {
-    setFormData({
-      ...formData,
-      alergias: formData.alergias.filter((a) => a !== alergia),
-    })
+    setFormData({ ...formData, alergias: formData.alergias.filter((a) => a !== alergia) })
   }
 
   const handleAddCondicion = () => {
     if (newCondicion.trim() && !formData.condicionesCronicas.includes(newCondicion.trim())) {
-      setFormData({
-        ...formData,
-        condicionesCronicas: [...formData.condicionesCronicas, newCondicion.trim()],
-      })
+      setFormData({ ...formData, condicionesCronicas: [...formData.condicionesCronicas, newCondicion.trim()] })
       setNewCondicion("")
     }
   }
 
   const handleRemoveCondicion = (condicion: string) => {
-    setFormData({
-      ...formData,
-      condicionesCronicas: formData.condicionesCronicas.filter((c) => c !== condicion),
-    })
+    setFormData({ ...formData, condicionesCronicas: formData.condicionesCronicas.filter((c) => c !== condicion) })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!session?.access_token || !user) {
+    if (!user) {
       toast({ title: 'Debes iniciar sesión para registrar un paciente' })
       return
     }
@@ -110,14 +84,12 @@ export default function ClinicNewPatientPage() {
       return
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
       toast({ title: 'El formato del correo electrónico no es válido' })
       return
     }
 
-    // Validate birth date is in the past
     if (birthDate > new Date()) {
       toast({ title: 'La fecha de nacimiento debe ser en el pasado' })
       return
@@ -126,54 +98,26 @@ export default function ClinicNewPatientPage() {
     setIsLoading(true)
 
     try {
-      const fechaNacimiento = `${birthDate.getFullYear()}-${(birthDate.getMonth() + 1).toString().padStart(2, "0")}-${birthDate.getDate().toString().padStart(2, "0")}`
+      const dateOfBirth = `${birthDate.getFullYear()}-${(birthDate.getMonth() + 1).toString().padStart(2, "0")}-${birthDate.getDate().toString().padStart(2, "0")}`
 
-      const response = await fetch('/api/patients', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          nombre: formData.nombre,
-          apellido: formData.apellido,
-          email: formData.email,
-          telefono: formData.telefono,
-          fechaNacimiento,
-          genero: formData.genero,
-          direccion: formData.direccion || undefined,
-          alergias: formData.alergias.length > 0 ? formData.alergias : undefined,
-          condicionesCronicas: formData.condicionesCronicas.length > 0 ? formData.condicionesCronicas : undefined,
-          grupoSanguineo: formData.grupoSanguineo || undefined,
-          clinic_id: clinicId,
-        }),
+      await apiClient.post('/api/patients', {
+        full_name: `${formData.nombre} ${formData.apellido}`.trim(),
+        email: formData.email,
+        phone: formData.telefono,
+        date_of_birth: dateOfBirth,
+        gender: formData.genero,
+        address: formData.direccion || undefined,
+        notes: [
+          formData.alergias.length > 0 ? `Alergias: ${formData.alergias.join(", ")}` : null,
+          formData.condicionesCronicas.length > 0 ? `Condiciones crónicas: ${formData.condicionesCronicas.join(", ")}` : null,
+          formData.grupoSanguineo ? `Grupo sanguíneo: ${formData.grupoSanguineo}` : null,
+        ].filter(Boolean).join("\n") || undefined,
+        clinic_id: clinicId,
       })
-
-      if (response.status === 401) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
-
-      if (response.status === 403) {
-        toast({ title: 'No tienes permiso para registrar pacientes' })
-        return
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        toast({ title: formatErrorMessage(errorData) })
-        return
-      }
 
       toast({ title: 'Paciente registrado exitosamente' })
       router.push(`/clinics/${clinicId}/pacientes`)
     } catch (error) {
-      if (isAuthError(error)) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
       toast({ title: formatErrorMessage(error, 'Creating patient') })
     } finally {
       setIsLoading(false)

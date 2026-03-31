@@ -30,6 +30,7 @@ import { formatDateLong } from "@/lib/date-utils"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { formatErrorMessage } from "@/lib/error-handling"
+import { apiClient } from "@/lib/api-client"
 import type { Appointment } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
@@ -42,7 +43,7 @@ const estadoConfig: Record<string, { label: string; color: string }> = {
 }
 
 export default function DashboardPage() {
-  const { user, session } = useAuth()
+  const { user } = useAuth()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [patientsCount, setPatientsCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -57,28 +58,16 @@ export default function DashboardPage() {
         setError(null)
 
         const today = new Date().toISOString().split("T")[0]
-        const headers = { 'Authorization': `Bearer ${session?.access_token}` }
 
         const [appointmentsRes, patientsRes] = await Promise.all([
-          fetch(`/api/appointments?fromDate=${today}&toDate=${today}`, { headers }),
-          fetch(`/api/patients?limit=10000`, { headers }),
+          apiClient.get(`/api/appointments?fromDate=${today}&toDate=${today}`),
+          apiClient.get(`/api/patients?limit=10000`),
         ])
 
-        if (!appointmentsRes.ok) {
-          const errData = await appointmentsRes.json().catch(() => ({}))
-          throw new Error(errData.error || `HTTP ${appointmentsRes.status}`)
-        }
-
-        const appointmentsJson = await appointmentsRes.json()
-        setAppointments(appointmentsJson.data || [])
-
-        if (patientsRes.ok) {
-          const patientsJson = await patientsRes.json()
-          // Use total count from pagination metadata or array length
-          setPatientsCount(
-            patientsJson.total || patientsJson.data?.length || 0
-          )
-        }
+        setAppointments(appointmentsRes.data?.data || [])
+        setPatientsCount(
+          patientsRes.data?.total || patientsRes.data?.data?.length || 0
+        )
       } catch (err) {
         const message = formatErrorMessage(err, "Fetching dashboard data")
         setError(message)

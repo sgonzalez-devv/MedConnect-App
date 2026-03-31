@@ -43,10 +43,11 @@ import { formatDateShort, calculateAge } from "@/lib/date-utils"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { formatErrorMessage } from "@/lib/error-handling"
+import { apiClient } from "@/lib/api-client"
 import type { Patient } from "@/lib/types"
 
 export default function PatientsPage() {
-  const { user, session } = useAuth()
+  const { user } = useAuth()
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -59,17 +60,8 @@ export default function PatientsPage() {
       try {
         setLoading(true)
 
-        const res = await fetch("/api/patients", {
-          headers: { 'Authorization': `Bearer ${session?.access_token}` },
-        })
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error || `HTTP ${res.status}`)
-        }
-
-        const json = await res.json()
-        setPatients(json.data || [])
+        const { data } = await apiClient.get("/api/patients")
+        setPatients(data?.data || [])
       } catch (err) {
         const message = formatErrorMessage(err, "Fetching patients")
         toast.error(message)

@@ -4,13 +4,66 @@
  * This module provides functions to:
  * - Detect and categorize Supabase errors
  * - Handle different error types: Auth, Clinic isolation, Validation, Connection
- * - Format error messages for user display
+ * - Format error messages for user display (including axios errors)
  * - Log errors for debugging
  * 
- * @requirement ERR-01, ERR-02, ERR-03, ERR-04, ERR-05
+ * @requirement ERR-01, ERR-02, ERR-03, ERR-04, ERR-05, AXIOS-03
  */
 
 import { PostgrestError } from '@supabase/supabase-js'
+import type { AxiosError } from 'axios'
+
+// ---------------------------------------------------------------------------
+// Axios-specific error helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Check if an unknown error originated from axios.
+ *
+ * @param error - The error to test
+ * @returns true if the error is an AxiosError
+ */
+export function isAxiosError(error: unknown): error is AxiosError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'isAxiosError' in error &&
+    (error as AxiosError).isAxiosError === true
+  )
+}
+
+/**
+ * Extract a user-friendly message from an axios error.
+ *
+ * Priority:
+ * 1. Server response body `error` field
+ * 2. Server response body `message` field
+ * 3. Axios `message` property
+ * 4. HTTP status string fallback
+ *
+ * @param error - The error to extract the message from
+ * @returns User-friendly error string
+ */
+export function getAxiosErrorMessage(error: unknown): string {
+  if (isAxiosError(error)) {
+    const data = error.response?.data as Record<string, unknown> | undefined
+    const serverMessage =
+      (typeof data?.error === 'string' ? data.error : undefined) ??
+      (typeof data?.message === 'string' ? data.message : undefined)
+
+    if (serverMessage) return serverMessage
+
+    const status = error.response?.status
+    if (status === 401) return 'Your session has expired. Please log in again.'
+    if (status === 403) return 'You do not have permission to perform this action.'
+    if (status === 404) return 'The requested resource was not found.'
+    if (status === 422) return 'The data provided is invalid.'
+    if (status && status >= 500) return 'A server error occurred. Please try again later.'
+
+    return error.message || 'An unexpected error occurred.'
+  }
+  return error instanceof Error ? error.message : 'Unknown error'
+}
 
 /**
  * Error response interface for consistent API error handling
@@ -215,6 +268,11 @@ export function isConnectionError(error: unknown): boolean {
  * // Returns: "Missing required information. Please ensure all required fields are filled."
  */
 export function formatErrorMessage(error: unknown, context?: string): string {
+  // Axios errors — handle first for precise HTTP-status-based messages
+  if (isAxiosError(error)) {
+    return getAxiosErrorMessage(error)
+  }
+
   // Auth errors
   if (isAuthError(error)) {
     return 'Your session has expired. Please log in again.'

@@ -22,7 +22,8 @@ import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getClinicColors } from "@/lib/theme-utils"
 import { useAuth } from "@/hooks/use-auth"
-import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
+import { formatErrorMessage } from "@/lib/error-handling"
+import { apiClient } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 import type { Patient } from "@/lib/types"
 
@@ -38,7 +39,7 @@ export default function ClinicNewAppointmentPage() {
   const searchParams = useSearchParams()
   const clinicId = params.clinicId as string
   const preSelectedPatientId = searchParams.get("paciente") || ""
-  const { user, session, loading: authLoading, signOut } = useAuth()
+  const { user } = useAuth()
   const clinicColors = getClinicColors("teal")
 
   const [mode, setMode] = useState<"manual" | "bot">("manual")
@@ -54,66 +55,26 @@ export default function ClinicNewAppointmentPage() {
     notas: "",
   })
 
-  // Verify user has access to this clinic
-  useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login')
-        return
-      }
-      if (user?.clinic_id && user.clinic_id !== clinicId) {
-        toast({ title: 'No tienes acceso a esta clínica' })
-        router.push('/clinics')
-        return
-      }
-    }
-  }, [authLoading, session, user, clinicId, router])
-
   // Fetch patients for dropdown
   const fetchPatients = useCallback(async () => {
-    if (!session?.access_token) return
-
     try {
-      const response = await fetch('/api/patients', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (response.status === 401) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
-
-      if (!response.ok) {
-        const error = await response.json()
-        toast({ title: formatErrorMessage(error) })
-        return
-      }
-
-      const result = await response.json()
-      setPatients(result.data || [])
+      const { data } = await apiClient.get('/api/patients')
+      setPatients(data?.data || [])
     } catch (error) {
-      if (isAuthError(error)) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
       toast({ title: formatErrorMessage(error, 'Fetching patients') })
     }
-  }, [session, signOut, router])
+  }, [])
 
   useEffect(() => {
-    if (!authLoading && session) {
+    if (user) {
       fetchPatients()
     }
-  }, [authLoading, session, fetchPatients])
+  }, [user, fetchPatients])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!session?.access_token || !user) {
+    if (!user) {
       toast({ title: 'Debes iniciar sesión para crear una cita' })
       return
     }
@@ -136,49 +97,20 @@ export default function ClinicNewAppointmentPage() {
     try {
       const fechaStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`
 
-      const response = await fetch('/api/appointments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          pacienteId: formData.pacienteId,
-          fecha: fechaStr,
-          hora: formData.hora,
-          duracion: parseInt(formData.duracion),
-          tipo: formData.tipo,
-          motivo: formData.motivo,
-          notas: formData.notas || undefined,
-          clinic_id: clinicId,
-        }),
+      await apiClient.post('/api/appointments', {
+        pacienteId: formData.pacienteId,
+        fecha: fechaStr,
+        hora: formData.hora,
+        duracion: parseInt(formData.duracion),
+        tipo: formData.tipo,
+        motivo: formData.motivo,
+        notas: formData.notas || undefined,
+        clinic_id: clinicId,
       })
-
-      if (response.status === 401) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
-
-      if (response.status === 403) {
-        toast({ title: 'No tienes permiso para crear esta cita' })
-        return
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        toast({ title: formatErrorMessage(errorData) })
-        return
-      }
 
       toast({ title: 'Cita creada exitosamente' })
       router.push(`/clinics/${clinicId}/calendario`)
     } catch (error) {
-      if (isAuthError(error)) {
-        await signOut()
-        router.push('/auth/login')
-        return
-      }
       toast({ title: formatErrorMessage(error, 'Creating appointment') })
     } finally {
       setIsLoading(false)
@@ -235,7 +167,7 @@ export default function ClinicNewAppointmentPage() {
                     <SelectContent>
                       {patients.map((patient) => (
                         <SelectItem key={patient.id} value={patient.id}>
-                          {patient.nombre} {patient.apellido}
+                          {patient.full_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
