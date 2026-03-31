@@ -27,22 +27,15 @@ async function getUserClinicContext(
     return null
   }
 
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) {
+  // Read clinic_id and user_role from JWT metadata (set during user creation)
+  const clinic_id = user.user_metadata?.clinic_id
+  const user_role = user.user_metadata?.user_role
+
+  if (!clinic_id || !user_role) {
     return null
   }
 
-  const { data: userRecord, error: userError } = await supabase
-    .from('users')
-    .select('clinic_id, user_role')
-    .eq('id', user.id)
-    .single()
-
-  if (userError || !userRecord) {
-    return null
-  }
-
-  return userRecord
+  return { clinic_id, user_role }
 }
 
 /**

@@ -35,27 +35,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get clinic_id from custom JWT claims
-    // In Supabase, custom claims are stored in user.user_metadata
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Session expired', code: 'SESSION_EXPIRED' },
-        { status: 401 }
-      )
-    }
+    // Read clinic_id and user_role from JWT metadata (set during user creation)
+    const clinic_id = user.user_metadata?.clinic_id
+    const user_role = user.user_metadata?.user_role
 
-    // Extract clinic_id from JWT claims (set during login in Phase 02)
-    // For now, we'll query the users table to get clinic_id
-    const { data: userRecord, error: userError } = await supabase
-      .from('users')
-      .select('clinic_id, user_role')
-      .eq('id', user.id)
-      .single()
-
-    if (userError || !userRecord) {
+    if (!clinic_id || !user_role) {
       return NextResponse.json(
-        { error: 'User profile not found', code: 'USER_NOT_FOUND' },
+        { error: 'User profile incomplete', code: 'USER_NOT_FOUND' },
         { status: 404 }
       )
     }
@@ -74,7 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch patients using service layer (clinic-aware)
-    const patients = await getPatients(userRecord.clinic_id, { limit, offset })
+    const patients = await getPatients(clinic_id, { limit, offset })
 
     return NextResponse.json(
       { data: patients, status: 200 },
@@ -138,31 +124,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get session for clinic_id
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Session expired', code: 'SESSION_EXPIRED' },
-        { status: 401 }
-      )
-    }
+    // Read clinic_id and user_role from JWT metadata (set during user creation)
+    const clinic_id = user.user_metadata?.clinic_id
+    const user_role = user.user_metadata?.user_role
 
-    // Get user profile with clinic_id and role
-    const { data: userRecord, error: userError } = await supabase
-      .from('users')
-      .select('clinic_id, user_role')
-      .eq('id', user.id)
-      .single()
-
-    if (userError || !userRecord) {
+    if (!clinic_id || !user_role) {
       return NextResponse.json(
-        { error: 'User profile not found', code: 'USER_NOT_FOUND' },
+        { error: 'User profile incomplete', code: 'USER_NOT_FOUND' },
         { status: 404 }
       )
     }
 
     // Check authorization: only staff and admin can create patients
-    if (userRecord.user_role === 'doctor') {
+    if (user_role === 'doctor') {
       return NextResponse.json(
         { error: 'Doctors cannot create patients', code: 'FORBIDDEN' },
         { status: 403 }
@@ -227,7 +201,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create patient using service layer
-    const patient = await createPatientQuery(userRecord.clinic_id, patientData)
+    const patient = await createPatientQuery(clinic_id, patientData)
 
     return NextResponse.json(
       { data: patient, status: 201 },
