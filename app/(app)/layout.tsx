@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
@@ -18,10 +19,11 @@ export default function AppLayout({
   const { user, loading, signOut } = useAuth()
 
   // Redirect to login if not authenticated (fallback for middleware)
-  if (!loading && !user) {
-    router.push("/auth/login")
-    return null
-  }
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/auth/login")
+    }
+  }, [loading, user, router])
 
   if (loading) {
     return (
@@ -29,6 +31,10 @@ export default function AppLayout({
         <p className="text-muted-foreground">Loading...</p>
       </div>
     )
+  }
+
+  if (!user) {
+    return null
   }
 
   const handleLogout = async () => {
