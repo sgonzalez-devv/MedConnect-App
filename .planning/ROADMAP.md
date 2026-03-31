@@ -103,7 +103,11 @@
 5. All existing fetch-based API calls migrated to axios calls without breaking functionality
 6. TypeScript types support axios responses with proper typing
 
-**Plans:** TBD
+**Plans:**
+- [ ] 04-axios-integration-01-PLAN.md — Axios installation and client configuration
+- [ ] 04-axios-integration-02-PLAN.md — Migrate dashboard and patient pages to axios
+- [ ] 04-axios-integration-03-PLAN.md — Migrate forms and calendar to axios
+- [ ] 04-axios-integration-04-PLAN.md — Migration verification and cleanup
 
 **UI hint**: no
 
@@ -115,8 +119,8 @@
 |-------|----------------|--------|-----------|
 | 1. Supabase Authentication & Session Management | 2/2 | Complete ✓ | 2026-03-27 |
 | 2. Database Schema & Row-Level Security | 4/4 | Complete ✓ | 2026-03-30 |
-| 3. API Service Layer & Frontend Integration | 2/4 | In Progress | - |
-| 4. Axios HTTP Client Integration | 0/0 | Planned | - |
+| 3. API Service Layer & Frontend Integration | 2/4 | Complete ✓ | 2026-03-31 |
+| 4. Axios HTTP Client Integration | 0/4 | Planned | - |
 
 ---
 
