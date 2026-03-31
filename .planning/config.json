@@ -1,5 +1,16 @@
 {
   "workflow": {
     "_auto_chain_active": false
+  },
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "supabase": {
+      "type": "remote",
+      "url": "https://mcp.supabase.com/mcp?project_ref=knbnvwlmxbidfiixnylg",
+      "headers": {
+        "Authorization": "Bearer sbp_f4a73d218a2dbbe25643b470999e9705bc162d7e"
+      },
+      "enabled": true
+    }
   }
 }

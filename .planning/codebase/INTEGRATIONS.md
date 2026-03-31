@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-03-25
+**Analysis Date:** 2026-03-25 (Updated: 2026-03-30)
 
 ## APIs & External Services
 
@@ -13,12 +13,16 @@
 ## Data Storage
 
 **Databases:**
-- Not detected - No database client configured (no Prisma, Supabase, Firebase, etc.)
+- **Supabase** — Connected via MCP server
+  - Project ref: `knbnvwlmxbidfiixnylg`
+  - MCP type: Remote (`https://mcp.supabase.com/mcp?project_ref=knbnvwlmxbidfiixnylg`)
+  - Capabilities: Create/manage tables, run SQL queries, manage RLS policies, migrations
+  - Config: `.planning/config.json`
 
 **Data Management:**
 - Mock Data - Development data hardcoded in `lib/mock-data.ts`
   - Contains sample patients, appointments, consultations, and notifications
-  - No persistence layer or API backend
+  - Being migrated to Supabase as phases progress
 
 **Client-side Storage:**
 - Browser sessionStorage - Temporary session state
@@ -35,10 +39,10 @@
 ## Authentication & Identity
 
 **Auth Provider:**
-- Custom or placeholder - No third-party auth service integrated
-- Login page exists: `app/login/page.tsx`
-- Onboarding page exists: `app/onboarding/page.tsx`
-- No OAuth, Firebase Auth, Clerk, Auth0, or Supabase Auth detected
+- **Supabase Auth** — Connected via Supabase MCP
+  - Login page: `app/login/page.tsx`
+  - Onboarding page: `app/onboarding/page.tsx`
+  - Session management via `@supabase/ssr` 0.9.0
 
 ## Real-time Communication
 
@@ -96,11 +100,12 @@
 ## Environment Configuration
 
 **Required env vars:**
-- None explicitly defined - Application appears frontend-only with mock data
-- No `.env` or `.env.example` file in root directory
+- Supabase credentials (in `.env.local` and `.env.local.example`)
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 **Secrets location:**
-- Not applicable (no external integrations requiring secrets)
+- `.env.local` — Local environment variables (not committed)
 
 ## API Endpoints (Internal)
 
@@ -179,18 +184,17 @@
 
 ## Integration Summary
 
-**External Service Dependencies:** 1
+**External Service Dependencies:** 2
 - Vercel Analytics (optional monitoring)
+- Supabase (database via MCP)
 
 **Internal Data Sources:** 1
-- Mock data system (no backend)
+- Mock data system (migrating to Supabase)
 
-**Status:** MVP/Demo
-- No real backend APIs
-- No database integration
-- No third-party service integrations
-- All data is frontend-only and ephemeral
-- Suitable for prototyping and UI development only
+**Status:** Active Development
+- Supabase MCP connected for database management
+- Mock data still used for UI features not yet migrated
+- Phase-driven migration from mock data to Supabase
 
 ---
 
