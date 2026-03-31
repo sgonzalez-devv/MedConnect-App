@@ -17,9 +17,8 @@ import {
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ArrowLeft, CalendarIcon, Plus, X, Loader2 } from "lucide-react"
+import { ArrowLeft, CalendarIcon, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { formatErrorMessage, isAuthError } from "@/lib/error-handling"
 import { toast } from "@/hooks/use-toast"
@@ -29,18 +28,12 @@ export default function NewPatientPage() {
   const { user, session, loading: authLoading, signOut } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [birthDate, setBirthDate] = useState<Date | undefined>()
-  const [newAlergia, setNewAlergia] = useState("")
-  const [newCondicion, setNewCondicion] = useState("")
   const [formData, setFormData] = useState({
-    nombre: "",
-    apellido: "",
+    fullName: "",
     email: "",
-    telefono: "",
-    genero: "",
-    direccion: "",
-    grupoSanguineo: "",
-    alergias: [] as string[],
-    condicionesCronicas: [] as string[],
+    phone: "",
+    gender: "",
+    address: "",
   })
 
   useEffect(() => {
@@ -48,40 +41,6 @@ export default function NewPatientPage() {
       router.push('/auth/login')
     }
   }, [authLoading, session, router])
-
-  const handleAddAlergia = () => {
-    if (newAlergia.trim() && !formData.alergias.includes(newAlergia.trim())) {
-      setFormData({
-        ...formData,
-        alergias: [...formData.alergias, newAlergia.trim()],
-      })
-      setNewAlergia("")
-    }
-  }
-
-  const handleRemoveAlergia = (alergia: string) => {
-    setFormData({
-      ...formData,
-      alergias: formData.alergias.filter((a) => a !== alergia),
-    })
-  }
-
-  const handleAddCondicion = () => {
-    if (newCondicion.trim() && !formData.condicionesCronicas.includes(newCondicion.trim())) {
-      setFormData({
-        ...formData,
-        condicionesCronicas: [...formData.condicionesCronicas, newCondicion.trim()],
-      })
-      setNewCondicion("")
-    }
-  }
-
-  const handleRemoveCondicion = (condicion: string) => {
-    setFormData({
-      ...formData,
-      condicionesCronicas: formData.condicionesCronicas.filter((c) => c !== condicion),
-    })
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -91,7 +50,7 @@ export default function NewPatientPage() {
       return
     }
 
-    if (!formData.nombre || !formData.apellido || !formData.email || !formData.telefono || !formData.genero || !birthDate) {
+    if (!formData.fullName || !formData.email || !formData.phone || !formData.gender || !birthDate) {
       toast({ title: 'Por favor completa todos los campos requeridos' })
       return
     }
@@ -112,7 +71,7 @@ export default function NewPatientPage() {
     setIsLoading(true)
 
     try {
-      const fechaNacimiento = `${birthDate.getFullYear()}-${(birthDate.getMonth() + 1).toString().padStart(2, "0")}-${birthDate.getDate().toString().padStart(2, "0")}`
+      const dateOfBirth = `${birthDate.getFullYear()}-${(birthDate.getMonth() + 1).toString().padStart(2, "0")}-${birthDate.getDate().toString().padStart(2, "0")}`
 
       const response = await fetch('/api/patients', {
         method: 'POST',
@@ -121,16 +80,12 @@ export default function NewPatientPage() {
           'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          nombre: formData.nombre,
-          apellido: formData.apellido,
+          full_name: formData.fullName,
           email: formData.email,
-          telefono: formData.telefono,
-          fechaNacimiento,
-          genero: formData.genero,
-          direccion: formData.direccion || undefined,
-          alergias: formData.alergias.length > 0 ? formData.alergias : undefined,
-          condicionesCronicas: formData.condicionesCronicas.length > 0 ? formData.condicionesCronicas : undefined,
-          grupoSanguineo: formData.grupoSanguineo || undefined,
+          phone: formData.phone,
+          date_of_birth: dateOfBirth,
+          gender: formData.gender,
+          address: formData.address || undefined,
         }),
       })
 
@@ -192,27 +147,15 @@ export default function NewPatientPage() {
             {/* Personal Info */}
             <div className="space-y-4">
               <h3 className="font-medium text-foreground">Información Personal</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nombre">Nombre(s)</Label>
-                  <Input
-                    id="nombre"
-                    placeholder="Nombre del paciente"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="apellido">Apellidos</Label>
-                  <Input
-                    id="apellido"
-                    placeholder="Apellidos del paciente"
-                    value={formData.apellido}
-                    onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
-                    required
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Nombre Completo</Label>
+                <Input
+                  id="fullName"
+                  placeholder="Nombre completo del paciente"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -254,16 +197,16 @@ export default function NewPatientPage() {
                 <div className="space-y-2">
                   <Label>Género</Label>
                   <Select
-                    value={formData.genero}
-                    onValueChange={(v) => setFormData({ ...formData, genero: v })}
+                    value={formData.gender}
+                    onValueChange={(v) => setFormData({ ...formData, gender: v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona género" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="masculino">Masculino</SelectItem>
-                      <SelectItem value="femenino">Femenino</SelectItem>
-                      <SelectItem value="otro">Otro</SelectItem>
+                      <SelectItem value="male">Masculino</SelectItem>
+                      <SelectItem value="female">Femenino</SelectItem>
+                      <SelectItem value="other">Otro</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -275,13 +218,13 @@ export default function NewPatientPage() {
               <h3 className="font-medium text-foreground">Información de Contacto</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="telefono">Teléfono</Label>
+                  <Label htmlFor="phone">Teléfono</Label>
                   <Input
-                    id="telefono"
+                    id="phone"
                     type="tel"
                     placeholder="+1 809 555 1234"
-                    value={formData.telefono}
-                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     required
                   />
                 </div>
@@ -297,105 +240,14 @@ export default function NewPatientPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="direccion">Dirección</Label>
+                <Label htmlFor="address">Dirección</Label>
                 <Textarea
-                  id="direccion"
+                  id="address"
                   placeholder="Calle, número, sector, ciudad"
-                  value={formData.direccion}
-                  onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   rows={2}
                 />
-              </div>
-            </div>
-
-            {/* Medical Info */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="font-medium text-foreground">Información Médica</h3>
-              
-              <div className="space-y-2">
-                <Label>Grupo Sanguíneo</Label>
-                <Select
-                  value={formData.grupoSanguineo}
-                  onValueChange={(v) => setFormData({ ...formData, grupoSanguineo: v })}
-                >
-                  <SelectTrigger className="w-full md:w-48">
-                    <SelectValue placeholder="Selecciona" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="A+">A+</SelectItem>
-                    <SelectItem value="A-">A-</SelectItem>
-                    <SelectItem value="B+">B+</SelectItem>
-                    <SelectItem value="B-">B-</SelectItem>
-                    <SelectItem value="AB+">AB+</SelectItem>
-                    <SelectItem value="AB-">AB-</SelectItem>
-                    <SelectItem value="O+">O+</SelectItem>
-                    <SelectItem value="O-">O-</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Alergias */}
-              <div className="space-y-2">
-                <Label>Alergias</Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Agregar alergia"
-                    value={newAlergia}
-                    onChange={(e) => setNewAlergia(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddAlergia())}
-                  />
-                  <Button type="button" variant="outline" onClick={handleAddAlergia}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-                {formData.alergias.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.alergias.map((alergia) => (
-                      <Badge key={alergia} variant="destructive" className="pr-1">
-                        {alergia}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveAlergia(alergia)}
-                          className="ml-1 hover:bg-white/20 rounded-full p-0.5"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Condiciones Crónicas */}
-              <div className="space-y-2">
-                <Label>Condiciones Crónicas</Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Agregar condición"
-                    value={newCondicion}
-                    onChange={(e) => setNewCondicion(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddCondicion())}
-                  />
-                  <Button type="button" variant="outline" onClick={handleAddCondicion}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-                {formData.condicionesCronicas.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.condicionesCronicas.map((condicion) => (
-                      <Badge key={condicion} variant="secondary" className="pr-1">
-                        {condicion}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCondicion(condicion)}
-                          className="ml-1 hover:bg-white/20 rounded-full p-0.5"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
 

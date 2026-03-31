@@ -24,8 +24,8 @@ import {
   VitalSigns,
   DoctorProfile,
   MedicalHistory,
-  Vaccine,
-  MedicalAttachment,
+  VaccineRecord,
+  Attachment,
   Clinic,
 } from '@/lib/types'
 import { handleSupabaseError, isAuthError, isClinicIsolationError } from '@/lib/error-handling'
@@ -57,22 +57,26 @@ export async function getPatients(
       return []
     }
 
-    // Transform database format to Patient interface
     return data.map((row: any) => ({
       id: row.id,
-      clinicId: row.clinic_id,
-      nombre: row.full_name || row.nombre || '',
-      apellido: row.apellido || '',
-      email: row.email || '',
-      telefono: row.telefono || '',
-      fechaNacimiento: row.fecha_nacimiento || row.fechaNacimiento || '',
-      genero: row.genero || 'otro',
-      direccion: row.direccion || '',
-      alergias: row.alergias || [],
-      condicionesCronicas: row.condiciones_cronicas || row.condicionesCronicas || [],
-      grupoSanguineo: row.grupo_sanguineo || row.grupoSanguineo || '',
-      avatar: row.avatar,
-      fechaRegistro: row.fecha_registro || row.fechaRegistro || new Date().toISOString(),
+      clinic_id: row.clinic_id,
+      full_name: row.full_name || '',
+      date_of_birth: row.date_of_birth || null,
+      gender: row.gender || null,
+      email: row.email || null,
+      phone: row.phone || null,
+      address: row.address || null,
+      city: row.city || null,
+      state: row.state || null,
+      zip_code: row.zip_code || null,
+      country: row.country || null,
+      id_document: row.id_document || null,
+      emergency_contact_name: row.emergency_contact_name || null,
+      emergency_contact_phone: row.emergency_contact_phone || null,
+      notes: row.notes || null,
+      status: row.status || 'active',
+      created_at: row.created_at || new Date().toISOString(),
+      updated_at: row.updated_at || new Date().toISOString(),
     }))
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -110,19 +114,24 @@ export async function getPatientById(
 
     return {
       id: data.id,
-      clinicId: data.clinic_id,
-      nombre: data.full_name || data.nombre || '',
-      apellido: data.apellido || '',
-      email: data.email || '',
-      telefono: data.telefono || '',
-      fechaNacimiento: data.fecha_nacimiento || data.fechaNacimiento || '',
-      genero: data.genero || 'otro',
-      direccion: data.direccion || '',
-      alergias: data.alergias || [],
-      condicionesCronicas: data.condiciones_cronicas || data.condicionesCronicas || [],
-      grupoSanguineo: data.grupo_sanguineo || data.grupoSanguineo || '',
-      avatar: data.avatar,
-      fechaRegistro: data.fecha_registro || data.fechaRegistro || '',
+      clinic_id: data.clinic_id,
+      full_name: data.full_name || '',
+      date_of_birth: data.date_of_birth || null,
+      gender: data.gender || null,
+      email: data.email || null,
+      phone: data.phone || null,
+      address: data.address || null,
+      city: data.city || null,
+      state: data.state || null,
+      zip_code: data.zip_code || null,
+      country: data.country || null,
+      id_document: data.id_document || null,
+      emergency_contact_name: data.emergency_contact_name || null,
+      emergency_contact_phone: data.emergency_contact_phone || null,
+      notes: data.notes || null,
+      status: data.status || 'active',
+      created_at: data.created_at || '',
+      updated_at: data.updated_at || '',
     }
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -137,7 +146,7 @@ export async function getPatientById(
  * Create a new patient in the clinic
  * 
  * @param clinicId - The clinic ID (from JWT claims)
- * @param data - Patient data (id and clinicId will be added by service)
+ * @param data - Patient data (id and clinic_id will be added by service)
  * @returns Promise resolving to created Patient
  * 
  * @requirement API-07 (Create new patient)
@@ -145,7 +154,7 @@ export async function getPatientById(
  */
 export async function createPatient(
   clinicId: string,
-  data: Omit<Patient, 'id' | 'clinicId'>
+  data: Omit<Patient, 'id' | 'clinic_id'>
 ): Promise<Patient> {
   try {
     const { data: result, error } = await queries.createPatient(clinicId, data)
@@ -160,19 +169,24 @@ export async function createPatient(
 
     return {
       id: result.id,
-      clinicId: result.clinic_id,
-      nombre: result.full_name || result.nombre || '',
-      apellido: result.apellido || '',
-      email: result.email || '',
-      telefono: result.telefono || '',
-      fechaNacimiento: result.fecha_nacimiento || result.fechaNacimiento || '',
-      genero: result.genero || 'otro',
-      direccion: result.direccion || '',
-      alergias: result.alergias || [],
-      condicionesCronicas: result.condiciones_cronicas || result.condicionesCronicas || [],
-      grupoSanguineo: result.grupo_sanguineo || result.grupoSanguineo || '',
-      avatar: result.avatar,
-      fechaRegistro: result.fecha_registro || result.fechaRegistro || new Date().toISOString(),
+      clinic_id: result.clinic_id,
+      full_name: result.full_name || '',
+      date_of_birth: result.date_of_birth || null,
+      gender: result.gender || null,
+      email: result.email || null,
+      phone: result.phone || null,
+      address: result.address || null,
+      city: result.city || null,
+      state: result.state || null,
+      zip_code: result.zip_code || null,
+      country: result.country || null,
+      id_document: result.id_document || null,
+      emergency_contact_name: result.emergency_contact_name || null,
+      emergency_contact_phone: result.emergency_contact_phone || null,
+      notes: result.notes || null,
+      status: result.status || 'active',
+      created_at: result.created_at || new Date().toISOString(),
+      updated_at: result.updated_at || new Date().toISOString(),
     }
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -197,7 +211,7 @@ export async function createPatient(
 export async function updatePatient(
   clinicId: string,
   patientId: string,
-  data: Partial<Omit<Patient, 'id' | 'clinicId'>>
+  data: Partial<Omit<Patient, 'id' | 'clinic_id'>>
 ): Promise<Patient> {
   try {
     const { data: result, error } = await queries.updatePatient(clinicId, patientId, data)
@@ -212,19 +226,24 @@ export async function updatePatient(
 
     return {
       id: result.id,
-      clinicId: result.clinic_id,
-      nombre: result.full_name || result.nombre || '',
-      apellido: result.apellido || '',
-      email: result.email || '',
-      telefono: result.telefono || '',
-      fechaNacimiento: result.fecha_nacimiento || result.fechaNacimiento || '',
-      genero: result.genero || 'otro',
-      direccion: result.direccion || '',
-      alergias: result.alergias || [],
-      condicionesCronicas: result.condiciones_cronicas || result.condicionesCronicas || [],
-      grupoSanguineo: result.grupo_sanguineo || result.grupoSanguineo || '',
-      avatar: result.avatar,
-      fechaRegistro: result.fecha_registro || result.fechaRegistro || '',
+      clinic_id: result.clinic_id,
+      full_name: result.full_name || '',
+      date_of_birth: result.date_of_birth || null,
+      gender: result.gender || null,
+      email: result.email || null,
+      phone: result.phone || null,
+      address: result.address || null,
+      city: result.city || null,
+      state: result.state || null,
+      zip_code: result.zip_code || null,
+      country: result.country || null,
+      id_document: result.id_document || null,
+      emergency_contact_name: result.emergency_contact_name || null,
+      emergency_contact_phone: result.emergency_contact_phone || null,
+      notes: result.notes || null,
+      status: result.status || 'active',
+      created_at: result.created_at || '',
+      updated_at: result.updated_at || '',
     }
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -292,16 +311,18 @@ export async function getAppointments(
 
     return data.map((row: any) => ({
       id: row.id,
-      clinicId: row.clinic_id,
-      pacienteId: row.paciente_id,
-      fecha: row.fecha || '',
-      hora: row.hora || '',
-      duracion: row.duracion || 30,
-      tipo: row.tipo || 'consulta',
-      estado: row.estado || 'programada',
-      motivo: row.motivo || '',
-      notas: row.notas,
-      creadoPorBot: row.creado_por_bot || false,
+      clinic_id: row.clinic_id,
+      patient_id: row.patient_id,
+      doctor_id: row.doctor_id || null,
+      appointment_datetime: row.appointment_datetime || '',
+      duration_minutes: row.duration_minutes || 30,
+      status: row.status || 'scheduled',
+      reason_for_visit: row.reason_for_visit || null,
+      notes: row.notes || null,
+      created_at: row.created_at || '',
+      updated_at: row.updated_at || '',
+      fecha: row.appointment_datetime ? row.appointment_datetime.split('T')[0] : '',
+      hora: row.appointment_datetime ? row.appointment_datetime.substring(11, 16) : '',
     }))
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -338,16 +359,18 @@ export async function getAppointmentById(
 
     return {
       id: data.id,
-      clinicId: data.clinic_id,
-      pacienteId: data.paciente_id,
-      fecha: data.fecha || '',
-      hora: data.hora || '',
-      duracion: data.duracion || 30,
-      tipo: data.tipo || 'consulta',
-      estado: data.estado || 'programada',
-      motivo: data.motivo || '',
-      notas: data.notas,
-      creadoPorBot: data.creado_por_bot || false,
+      clinic_id: data.clinic_id,
+      patient_id: data.patient_id,
+      doctor_id: data.doctor_id || null,
+      appointment_datetime: data.appointment_datetime || '',
+      duration_minutes: data.duration_minutes || 30,
+      status: data.status || 'scheduled',
+      reason_for_visit: data.reason_for_visit || null,
+      notes: data.notes || null,
+      created_at: data.created_at || '',
+      updated_at: data.updated_at || '',
+      fecha: data.appointment_datetime ? data.appointment_datetime.split('T')[0] : '',
+      hora: data.appointment_datetime ? data.appointment_datetime.substring(11, 16) : '',
     }
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -362,14 +385,14 @@ export async function getAppointmentById(
  * Create a new appointment in the clinic
  * 
  * @param clinicId - The clinic ID (from JWT claims)
- * @param data - Appointment data (id and clinicId will be added by service)
+ * @param data - Appointment data (id and clinic_id will be added by service)
  * @returns Promise resolving to created Appointment
  * 
  * @requirement API-07 (Create new appointment)
  */
 export async function createAppointment(
   clinicId: string,
-  data: Omit<Appointment, 'id' | 'clinicId'>
+  data: Omit<Appointment, 'id' | 'clinic_id'>
 ): Promise<Appointment> {
   try {
     const { data: result, error } = await queries.createAppointment(clinicId, data)
@@ -384,16 +407,18 @@ export async function createAppointment(
 
     return {
       id: result.id,
-      clinicId: result.clinic_id,
-      pacienteId: result.paciente_id,
-      fecha: result.fecha || '',
-      hora: result.hora || '',
-      duracion: result.duracion || 30,
-      tipo: result.tipo || 'consulta',
-      estado: result.estado || 'programada',
-      motivo: result.motivo || '',
-      notas: result.notas,
-      creadoPorBot: result.creado_por_bot || false,
+      clinic_id: result.clinic_id,
+      patient_id: result.patient_id,
+      doctor_id: result.doctor_id || null,
+      appointment_datetime: result.appointment_datetime || '',
+      duration_minutes: result.duration_minutes || 30,
+      status: result.status || 'scheduled',
+      reason_for_visit: result.reason_for_visit || null,
+      notes: result.notes || null,
+      created_at: result.created_at || '',
+      updated_at: result.updated_at || '',
+      fecha: result.appointment_datetime ? result.appointment_datetime.split('T')[0] : '',
+      hora: result.appointment_datetime ? result.appointment_datetime.substring(11, 16) : '',
     }
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -419,7 +444,7 @@ export async function createAppointment(
 export async function updateAppointment(
   clinicId: string,
   appointmentId: string,
-  data: Partial<Omit<Appointment, 'id' | 'clinicId'>>
+  data: Partial<Omit<Appointment, 'id' | 'clinic_id'>>
 ): Promise<Appointment> {
   try {
     const { data: result, error } = await queries.updateAppointment(clinicId, appointmentId, data)
@@ -434,16 +459,18 @@ export async function updateAppointment(
 
     return {
       id: result.id,
-      clinicId: result.clinic_id,
-      pacienteId: result.paciente_id,
-      fecha: result.fecha || '',
-      hora: result.hora || '',
-      duracion: result.duracion || 30,
-      tipo: result.tipo || 'consulta',
-      estado: result.estado || 'programada',
-      motivo: result.motivo || '',
-      notas: result.notas,
-      creadoPorBot: result.creado_por_bot || false,
+      clinic_id: result.clinic_id,
+      patient_id: result.patient_id,
+      doctor_id: result.doctor_id || null,
+      appointment_datetime: result.appointment_datetime || '',
+      duration_minutes: result.duration_minutes || 30,
+      status: result.status || 'scheduled',
+      reason_for_visit: result.reason_for_visit || null,
+      notes: result.notes || null,
+      created_at: result.created_at || '',
+      updated_at: result.updated_at || '',
+      fecha: result.appointment_datetime ? result.appointment_datetime.split('T')[0] : '',
+      hora: result.appointment_datetime ? result.appointment_datetime.substring(11, 16) : '',
     }
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -512,18 +539,21 @@ export async function getVitalSigns(
 
     return data.map((row: any) => ({
       id: row.id,
-      pacienteId: row.paciente_id,
-      citaId: row.cita_id,
-      fecha: row.fecha || '',
-      presionSistolica: row.presion_sistolica || 0,
-      presionDiastolica: row.presion_diastolica || 0,
-      frecuenciaCardiaca: row.frecuencia_cardiaca || 0,
-      temperatura: row.temperatura || 0,
-      peso: row.peso || 0,
-      talla: row.talla || 0,
-      saturacionOxigeno: row.saturacion_oxigeno,
-      glucosa: row.glucosa,
-      notas: row.notas,
+      clinic_id: row.clinic_id,
+      patient_id: row.patient_id,
+      recorded_at: row.recorded_at || '',
+      temperature_celsius: row.temperature_celsius ?? null,
+      systolic_pressure: row.systolic_pressure ?? null,
+      diastolic_pressure: row.diastolic_pressure ?? null,
+      heart_rate: row.heart_rate ?? null,
+      respiratory_rate: row.respiratory_rate ?? null,
+      oxygen_saturation_percent: row.oxygen_saturation_percent ?? null,
+      weight_kg: row.weight_kg ?? null,
+      height_cm: row.height_cm ?? null,
+      blood_glucose_mg_dl: row.blood_glucose_mg_dl ?? null,
+      notes: row.notes ?? null,
+      created_at: row.created_at || '',
+      updated_at: row.updated_at || '',
     }))
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -560,18 +590,21 @@ export async function createVitalSigns(
 
     return {
       id: result.id,
-      pacienteId: result.paciente_id,
-      citaId: result.cita_id,
-      fecha: result.fecha || '',
-      presionSistolica: result.presion_sistolica || 0,
-      presionDiastolica: result.presion_diastolica || 0,
-      frecuenciaCardiaca: result.frecuencia_cardiaca || 0,
-      temperatura: result.temperatura || 0,
-      peso: result.peso || 0,
-      talla: result.talla || 0,
-      saturacionOxigeno: result.saturacion_oxigeno,
-      glucosa: result.glucosa,
-      notas: result.notas,
+      clinic_id: result.clinic_id,
+      patient_id: result.patient_id,
+      recorded_at: result.recorded_at || '',
+      temperature_celsius: result.temperature_celsius ?? null,
+      systolic_pressure: result.systolic_pressure ?? null,
+      diastolic_pressure: result.diastolic_pressure ?? null,
+      heart_rate: result.heart_rate ?? null,
+      respiratory_rate: result.respiratory_rate ?? null,
+      oxygen_saturation_percent: result.oxygen_saturation_percent ?? null,
+      weight_kg: result.weight_kg ?? null,
+      height_cm: result.height_cm ?? null,
+      blood_glucose_mg_dl: result.blood_glucose_mg_dl ?? null,
+      notes: result.notes ?? null,
+      created_at: result.created_at || '',
+      updated_at: result.updated_at || '',
     }
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -610,18 +643,21 @@ export async function updateVitalSigns(
 
     return {
       id: result.id,
-      pacienteId: result.paciente_id,
-      citaId: result.cita_id,
-      fecha: result.fecha || '',
-      presionSistolica: result.presion_sistolica || 0,
-      presionDiastolica: result.presion_diastolica || 0,
-      frecuenciaCardiaca: result.frecuencia_cardiaca || 0,
-      temperatura: result.temperatura || 0,
-      peso: result.peso || 0,
-      talla: result.talla || 0,
-      saturacionOxigeno: result.saturacion_oxigeno,
-      glucosa: result.glucosa,
-      notas: result.notas,
+      clinic_id: result.clinic_id,
+      patient_id: result.patient_id,
+      recorded_at: result.recorded_at || '',
+      temperature_celsius: result.temperature_celsius ?? null,
+      systolic_pressure: result.systolic_pressure ?? null,
+      diastolic_pressure: result.diastolic_pressure ?? null,
+      heart_rate: result.heart_rate ?? null,
+      respiratory_rate: result.respiratory_rate ?? null,
+      oxygen_saturation_percent: result.oxygen_saturation_percent ?? null,
+      weight_kg: result.weight_kg ?? null,
+      height_cm: result.height_cm ?? null,
+      blood_glucose_mg_dl: result.blood_glucose_mg_dl ?? null,
+      notes: result.notes ?? null,
+      created_at: result.created_at || '',
+      updated_at: result.updated_at || '',
     }
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -658,16 +694,18 @@ export async function getConsultationNotes(
 
     return data.map((row: any) => ({
       id: row.id,
-      clinicId: row.clinic_id,
-      pacienteId: row.paciente_id,
-      citaId: row.cita_id,
-      fecha: row.fecha || '',
-      diagnostico: row.diagnostico || '',
-      sintomas: row.sintomas || [],
-      tratamiento: row.tratamiento || '',
-      recetas: row.recetas || [],
-      observaciones: row.observaciones || '',
-      doctorId: row.doctor_id || '',
+      clinic_id: row.clinic_id,
+      appointment_id: row.appointment_id || null,
+      patient_id: row.patient_id,
+      doctor_id: row.doctor_id || null,
+      chief_complaint: row.chief_complaint || null,
+      findings: row.findings || null,
+      diagnosis: row.diagnosis || null,
+      treatment_plan: row.treatment_plan || null,
+      prescriptions_given: row.prescriptions_given || null,
+      follow_up_instructions: row.follow_up_instructions || null,
+      created_at: row.created_at || '',
+      updated_at: row.updated_at || '',
     }))
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -689,7 +727,7 @@ export async function getConsultationNotes(
  */
 export async function createConsultationNote(
   clinicId: string,
-  data: Omit<ConsultationNote, 'id' | 'clinicId'>
+  data: Omit<ConsultationNote, 'id' | 'clinic_id'>
 ): Promise<ConsultationNote> {
   try {
     const { data: result, error } = await queries.createConsultationNote(clinicId, data)
@@ -704,16 +742,18 @@ export async function createConsultationNote(
 
     return {
       id: result.id,
-      clinicId: result.clinic_id,
-      pacienteId: result.paciente_id,
-      citaId: result.cita_id,
-      fecha: result.fecha || '',
-      diagnostico: result.diagnostico || '',
-      sintomas: result.sintomas || [],
-      tratamiento: result.tratamiento || '',
-      recetas: result.recetas || [],
-      observaciones: result.observaciones || '',
-      doctorId: result.doctor_id || '',
+      clinic_id: result.clinic_id,
+      appointment_id: result.appointment_id || null,
+      patient_id: result.patient_id,
+      doctor_id: result.doctor_id || null,
+      chief_complaint: result.chief_complaint || null,
+      findings: result.findings || null,
+      diagnosis: result.diagnosis || null,
+      treatment_plan: result.treatment_plan || null,
+      prescriptions_given: result.prescriptions_given || null,
+      follow_up_instructions: result.follow_up_instructions || null,
+      created_at: result.created_at || '',
+      updated_at: result.updated_at || '',
     }
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -729,14 +769,14 @@ export async function createConsultationNote(
  * 
  * @param clinicId - The clinic ID (from JWT claims)
  * @param patientId - Optional patient ID to filter by
- * @returns Promise resolving to MedicalAttachment[]
+ * @returns Promise resolving to Attachment[]
  * 
  * @requirement API-05 (Fetch medical attachments)
  */
 export async function getAttachments(
   clinicId: string,
   patientId?: string
-): Promise<MedicalAttachment[]> {
+): Promise<Attachment[]> {
   try {
     const { data, error } = await queries.getAttachments(clinicId, patientId)
 
@@ -750,13 +790,18 @@ export async function getAttachments(
 
     return data.map((row: any) => ({
       id: row.id,
-      clinicId: row.clinic_id,
-      pacienteId: row.paciente_id,
-      tipo: row.tipo || 'documento',
-      nombre: row.nombre || '',
-      fecha: row.fecha || '',
-      url: row.url || '',
-      descripcion: row.descripcion,
+      clinic_id: row.clinic_id,
+      patient_id: row.patient_id,
+      document_type: row.document_type || null,
+      file_name: row.file_name || '',
+      file_path: row.file_path || '',
+      file_size_bytes: row.file_size_bytes ?? null,
+      file_mime_type: row.file_mime_type || null,
+      uploaded_by_doctor_id: row.uploaded_by_doctor_id || null,
+      description: row.description || null,
+      uploaded_at: row.uploaded_at || '',
+      created_at: row.created_at || '',
+      updated_at: row.updated_at || '',
     }))
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -772,14 +817,14 @@ export async function getAttachments(
  * 
  * @param clinicId - The clinic ID (from JWT claims)
  * @param data - Attachment data
- * @returns Promise resolving to created MedicalAttachment
+ * @returns Promise resolving to created Attachment
  * 
  * @requirement API-07 (Create medical attachment)
  */
 export async function createAttachment(
   clinicId: string,
-  data: Omit<MedicalAttachment, 'id' | 'clinicId'>
-): Promise<MedicalAttachment> {
+  data: Omit<Attachment, 'id' | 'clinic_id'>
+): Promise<Attachment> {
   try {
     const { data: result, error } = await queries.createAttachment(clinicId, data)
 
@@ -793,13 +838,18 @@ export async function createAttachment(
 
     return {
       id: result.id,
-      clinicId: result.clinic_id,
-      pacienteId: result.paciente_id,
-      tipo: result.tipo || 'documento',
-      nombre: result.nombre || '',
-      fecha: result.fecha || '',
-      url: result.url || '',
-      descripcion: result.descripcion,
+      clinic_id: result.clinic_id,
+      patient_id: result.patient_id,
+      document_type: result.document_type || null,
+      file_name: result.file_name || '',
+      file_path: result.file_path || '',
+      file_size_bytes: result.file_size_bytes ?? null,
+      file_mime_type: result.file_mime_type || null,
+      uploaded_by_doctor_id: result.uploaded_by_doctor_id || null,
+      description: result.description || null,
+      uploaded_at: result.uploaded_at || '',
+      created_at: result.created_at || '',
+      updated_at: result.updated_at || '',
     }
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -832,15 +882,22 @@ export async function getDoctorProfiles(clinicId: string): Promise<DoctorProfile
 
     return data.map((row: any) => ({
       id: row.id,
-      nombre: row.nombre || row.full_name || '',
-      especialidad: row.especialidad || '',
-      email: row.email || '',
-      telefono: row.telefono || '',
-      horarioInicio: row.horario_inicio || '',
-      horarioFin: row.horario_fin || '',
-      diasLaborales: row.dias_laborales || [1, 2, 3, 4, 5],
-      duracionCitaDefault: row.duracion_cita_default || 30,
-      avatar: row.avatar,
+      user_id: row.user_id || '',
+      clinic_id: row.clinic_id || '',
+      specialization: row.specialization || null,
+      license_number: row.license_number || null,
+      biography: row.biography || null,
+      availability_monday: row.availability_monday || null,
+      availability_tuesday: row.availability_tuesday || null,
+      availability_wednesday: row.availability_wednesday || null,
+      availability_thursday: row.availability_thursday || null,
+      availability_friday: row.availability_friday || null,
+      availability_saturday: row.availability_saturday || null,
+      availability_sunday: row.availability_sunday || null,
+      office_phone: row.office_phone || null,
+      office_email: row.office_email || null,
+      created_at: row.created_at || '',
+      updated_at: row.updated_at || '',
     }))
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -911,13 +968,15 @@ export async function getMedicalHistory(
 
     return data.map((row: any) => ({
       id: row.id,
-      pacienteId: row.paciente_id,
-      tipo: row.tipo || 'personal',
-      categoria: row.categoria || 'enfermedad',
-      descripcion: row.descripcion || '',
-      fecha: row.fecha,
-      parentesco: row.parentesco,
-      notas: row.notas,
+      clinic_id: row.clinic_id || '',
+      patient_id: row.patient_id,
+      condition_name: row.condition_name || '',
+      diagnosis_date: row.diagnosis_date || null,
+      status: row.status || 'active',
+      severity: row.severity || null,
+      notes: row.notes || null,
+      created_at: row.created_at || '',
+      updated_at: row.updated_at || '',
     }))
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {
@@ -933,14 +992,14 @@ export async function getMedicalHistory(
  * 
  * @param clinicId - The clinic ID (from JWT claims)
  * @param patientId - The patient ID
- * @returns Promise resolving to Vaccine[]
+ * @returns Promise resolving to VaccineRecord[]
  * 
  * @requirement API-03 (Fetch vaccine records)
  */
 export async function getVaccineRecords(
   clinicId: string,
   patientId: string
-): Promise<Vaccine[]> {
+): Promise<VaccineRecord[]> {
   try {
     const { data, error } = await queries.getVaccineRecords(clinicId, patientId)
 
@@ -954,14 +1013,18 @@ export async function getVaccineRecords(
 
     return data.map((row: any) => ({
       id: row.id,
-      pacienteId: row.paciente_id,
-      nombre: row.nombre || '',
-      fecha: row.fecha || '',
-      dosis: row.dosis,
-      lote: row.lote,
-      proximaDosis: row.proxima_dosis,
-      aplicadoPor: row.aplicado_por,
-      notas: row.notas,
+      clinic_id: row.clinic_id || '',
+      patient_id: row.patient_id,
+      vaccine_name: row.vaccine_name || '',
+      dose_number: row.dose_number ?? null,
+      administration_date: row.administration_date || '',
+      lot_number: row.lot_number || null,
+      route_of_administration: row.route_of_administration || null,
+      site_of_injection: row.site_of_injection || null,
+      administered_by: row.administered_by || null,
+      notes: row.notes || null,
+      created_at: row.created_at || '',
+      updated_at: row.updated_at || '',
     }))
   } catch (err) {
     if (err instanceof Error && err.message.includes('code')) {

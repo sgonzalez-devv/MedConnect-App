@@ -8,8 +8,8 @@ import {
   DoctorProfile,
   Prescription,
   MedicalHistory,
-  Vaccine,
-  MedicalAttachment,
+  VaccineRecord,
+  Attachment,
   Clinic,
 } from '@/lib/types';
 
@@ -72,15 +72,17 @@ export async function getPatientById(clinic_id: string, patient_id: string) {
  */
 export async function createPatient(
   clinic_id: string,
-  data: Omit<Patient, 'id' | 'clinicId'>
+  data: Omit<Patient, 'id' | 'clinic_id'>
 ) {
   const supabase = await createClient();
+  
+  const { clinic_id: _, ...insertData } = data as Patient;
   
   return supabase
     .from('patients')
     .insert({
       clinic_id,
-      ...data,
+      ...insertData,
     })
     .select()
     .single();
@@ -92,13 +94,15 @@ export async function createPatient(
 export async function updatePatient(
   clinic_id: string,
   patient_id: string,
-  data: Partial<Omit<Patient, 'id' | 'clinicId'>>
+  data: Partial<Omit<Patient, 'id' | 'clinic_id'>>
 ) {
   const supabase = await createClient();
   
+  const { clinic_id: _, ...updateData } = data as Partial<Patient>;
+  
   return supabase
     .from('patients')
-    .update(data)
+    .update(updateData)
     .eq('id', patient_id)
     .eq('clinic_id', clinic_id)
     .select()
@@ -164,15 +168,16 @@ export async function getAppointmentById(clinic_id: string, appointment_id: stri
  */
 export async function createAppointment(
   clinic_id: string,
-  data: Omit<Appointment, 'id' | 'clinicId'>
+  data: Omit<Appointment, 'id' | 'clinic_id'>
 ) {
   const supabase = await createClient();
+  const { clinic_id: _, ...insertData } = data as Appointment;
   
   return supabase
     .from('appointments')
     .insert({
       clinic_id,
-      ...data,
+      ...insertData,
     })
     .select()
     .single();
@@ -184,7 +189,7 @@ export async function createAppointment(
 export async function updateAppointment(
   clinic_id: string,
   appointment_id: string,
-  data: Partial<Omit<Appointment, 'id' | 'clinicId'>>
+  data: Partial<Omit<Appointment, 'id' | 'clinic_id'>>
 ) {
   const supabase = await createClient();
   
@@ -236,15 +241,16 @@ export async function getConsultationNotes(
  */
 export async function createConsultationNote(
   clinic_id: string,
-  data: Omit<ConsultationNote, 'id' | 'clinicId'>
+  data: Omit<ConsultationNote, 'id' | 'clinic_id'>
 ) {
   const supabase = await createClient();
+  const { clinic_id: _, ...insertData } = data as ConsultationNote;
   
   return supabase
     .from('consultation_notes')
     .insert({
       clinic_id,
-      ...data,
+      ...insertData,
     })
     .select()
     .single();
@@ -256,7 +262,7 @@ export async function createConsultationNote(
 export async function updateConsultationNote(
   clinic_id: string,
   note_id: string,
-  data: Partial<Omit<ConsultationNote, 'id' | 'clinicId'>>
+  data: Partial<Omit<ConsultationNote, 'id' | 'clinic_id'>>
 ) {
   const supabase = await createClient();
   
@@ -296,12 +302,13 @@ export async function createVitalSign(
   data: Omit<VitalSigns, 'id'>
 ) {
   const supabase = await createClient();
+  const { clinic_id: _, ...insertData } = data as VitalSigns;
   
   return supabase
     .from('vital_signs')
     .insert({
       clinic_id,
-      ...data,
+      ...insertData,
     })
     .select()
     .single();
@@ -351,12 +358,13 @@ export async function createMedicalHistory(
   data: Omit<MedicalHistory, 'id'>
 ) {
   const supabase = await createClient();
+  const { clinic_id: _, ...insertData } = data as MedicalHistory;
   
   return supabase
     .from('medical_history')
     .insert({
       clinic_id,
-      ...data,
+      ...insertData,
     })
     .select()
     .single();
@@ -384,15 +392,16 @@ export async function getVaccineRecords(
  */
 export async function createVaccineRecord(
   clinic_id: string,
-  data: Omit<Vaccine, 'id'>
+  data: Omit<VaccineRecord, 'id'>
 ) {
   const supabase = await createClient();
+  const { clinic_id: _, ...insertData } = data as VaccineRecord;
   
   return supabase
     .from('vaccine_records')
     .insert({
       clinic_id,
-      ...data,
+      ...insertData,
     })
     .select()
     .single();
@@ -423,12 +432,13 @@ export async function createPrescription(
   data: Omit<Prescription, 'id'>
 ) {
   const supabase = await createClient();
+  const { clinic_id: _, ...insertData } = data as Prescription;
   
   return supabase
     .from('prescriptions')
     .insert({
       clinic_id,
-      ...data,
+      ...insertData,
     })
     .select()
     .single();
@@ -479,15 +489,16 @@ export async function getAttachments(
  */
 export async function createAttachment(
   clinic_id: string,
-  data: Omit<MedicalAttachment, 'id' | 'clinicId'>
+  data: Omit<Attachment, 'id' | 'clinic_id'>
 ) {
   const supabase = await createClient();
+  const { clinic_id: _, ...insertData } = data as Attachment;
   
   return supabase
     .from('attachments')
     .insert({
       clinic_id,
-      ...data,
+      ...insertData,
     })
     .select()
     .single();
@@ -528,12 +539,13 @@ export async function createDoctor(
   data: Omit<DoctorProfile, 'id'>
 ) {
   const supabase = await createClient();
+  const { clinic_id: _, ...insertData } = data as DoctorProfile;
   
   return supabase
     .from('doctor_profiles')
     .insert({
       clinic_id,
-      ...data,
+      ...insertData,
     })
     .select()
     .single();

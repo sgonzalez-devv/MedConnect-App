@@ -168,7 +168,7 @@ export async function PATCH(
     }
 
     // Prevent updating immutable fields
-    const immutableFields = ['id', 'clinicId', 'clinic_id', 'pacienteId', 'paciente_id']
+    const immutableFields = ['id', 'clinic_id', 'patient_id', 'created_at']
     for (const field of immutableFields) {
       if (field in body) {
         return NextResponse.json(
@@ -178,48 +178,29 @@ export async function PATCH(
       }
     }
 
-    // Validate estado enum if provided
-    if (body.estado && !['programada', 'confirmada', 'en_curso', 'completada', 'cancelada', 'no_asistio'].includes(body.estado)) {
+    // Validate status enum if provided
+    if (body.status && !['scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show'].includes(body.status)) {
       return NextResponse.json(
         { error: 'Invalid appointment status', code: 'VALIDATION_ERROR' },
         { status: 400 }
       )
     }
 
-    // Validate tipo enum if provided
-    if (body.tipo && !['consulta', 'seguimiento', 'urgencia', 'revision'].includes(body.tipo)) {
-      return NextResponse.json(
-        { error: 'Invalid appointment type', code: 'VALIDATION_ERROR' },
-        { status: 400 }
-      )
-    }
-
-    // Validate fecha format if provided (YYYY-MM-DD)
-    if (body.fecha) {
-      const fechaRegex = /^\d{4}-\d{2}-\d{2}$/
-      if (!fechaRegex.test(body.fecha)) {
+    // Validate appointment_datetime format if provided (ISO 8601)
+    if (body.appointment_datetime) {
+      const datetimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/
+      if (!datetimeRegex.test(body.appointment_datetime)) {
         return NextResponse.json(
-          { error: 'Invalid fecha format, expected YYYY-MM-DD', code: 'VALIDATION_ERROR' },
+          { error: 'Invalid appointment_datetime format, expected ISO 8601 (YYYY-MM-DDTHH:MM)', code: 'VALIDATION_ERROR' },
           { status: 400 }
         )
       }
     }
 
-    // Validate hora format if provided (HH:MM)
-    if (body.hora) {
-      const horaRegex = /^\d{2}:\d{2}$/
-      if (!horaRegex.test(body.hora)) {
-        return NextResponse.json(
-          { error: 'Invalid hora format, expected HH:MM', code: 'VALIDATION_ERROR' },
-          { status: 400 }
-        )
-      }
-    }
-
-    // Validate duracion if provided
-    if (body.duracion !== undefined) {
-      const duracion = parseInt(body.duracion)
-      if (isNaN(duracion) || duracion < 5) {
+    // Validate duration_minutes if provided
+    if (body.duration_minutes !== undefined) {
+      const duration = parseInt(body.duration_minutes)
+      if (isNaN(duration) || duration < 5) {
         return NextResponse.json(
           { error: 'Duration must be at least 5 minutes', code: 'VALIDATION_ERROR' },
           { status: 400 }

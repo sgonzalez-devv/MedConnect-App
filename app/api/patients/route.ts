@@ -95,17 +95,12 @@ export async function GET(request: NextRequest) {
  * 
  * Request body:
  * {
- *   nombre: string (required)
- *   apellido: string (required)
+ *   full_name: string (required)
  *   email: string (required)
- *   telefono: string (required)
- *   fechaNacimiento: string (required)
- *   genero: "masculino" | "femenino" | "otro" (required)
- *   direccion: string (optional)
- *   alergias: string[] (optional)
- *   condicionesCronicas: string[] (optional)
- *   grupoSanguineo: string (optional)
- *   avatar: string (optional)
+ *   phone: string (required)
+ *   date_of_birth: string (required, YYYY-MM-DD)
+ *   gender: string (required)
+ *   address: string (optional)
  * }
  * 
  * @requirement API-02
@@ -155,7 +150,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate required fields
-    const requiredFields = ['nombre', 'apellido', 'email', 'telefono', 'fechaNacimiento', 'genero']
+    const requiredFields = ['full_name', 'email', 'phone', 'date_of_birth', 'gender']
     const missingFields = requiredFields.filter(field => !body[field])
 
     if (missingFields.length > 0) {
@@ -177,27 +172,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate genero enum
-    if (!['masculino', 'femenino', 'otro'].includes(body.genero)) {
-      return NextResponse.json(
-        { error: 'Invalid genero value', code: 'VALIDATION_ERROR' },
-        { status: 400 }
-      )
-    }
-
     // Prepare patient data
-    const patientData: Omit<Patient, 'id' | 'clinicId'> = {
-      nombre: body.nombre,
-      apellido: body.apellido,
+    const patientData: Omit<Patient, 'id' | 'clinic_id'> = {
+      full_name: body.full_name,
       email: body.email,
-      telefono: body.telefono,
-      fechaNacimiento: body.fechaNacimiento,
-      genero: body.genero,
-      direccion: body.direccion || '',
-      alergias: Array.isArray(body.alergias) ? body.alergias : [],
-      condicionesCronicas: Array.isArray(body.condicionesCronicas) ? body.condicionesCronicas : [],
-      grupoSanguineo: body.grupoSanguineo || '',
-      fechaRegistro: new Date().toISOString(),
+      phone: body.phone,
+      date_of_birth: body.date_of_birth,
+      gender: body.gender,
+      address: body.address || null,
+      city: null,
+      state: null,
+      zip_code: null,
+      country: null,
+      id_document: null,
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+      notes: null,
+      status: 'active',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }
 
     // Create patient using service layer

@@ -22,12 +22,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    
-    // Simulate login
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    
-    router.push("/dashboard")
+    router.push("/auth/login")
   }
 
   return (
@@ -148,7 +143,7 @@ export default function LoginPage() {
                     </Label>
                   </div>
                   <Link
-                    href="#"
+                    href="/auth/reset-password"
                     className="text-sm text-teal-600 hover:text-teal-700 hover:underline"
                   >
                     ¿Olvidaste tu contraseña?
@@ -167,7 +162,7 @@ export default function LoginPage() {
               <div className="mt-6 text-center">
                 <p className="text-sm text-muted-foreground">
                   ¿No tienes una cuenta?{" "}
-                  <Link href="/onboarding" className="text-teal-600 hover:text-teal-700 hover:underline font-medium">
+                  <Link href="/auth/signup" className="text-teal-600 hover:text-teal-700 hover:underline font-medium">
                     Regístrate aquí
                   </Link>
                 </p>

@@ -37,11 +37,10 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react"
-import { whatsappConversations } from "@/lib/mock-data"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { formatErrorMessage } from "@/lib/error-handling"
-import type { Patient, Appointment, ConsultationNote, MedicalAttachment, VitalSigns, MedicalHistory, Vaccine } from "@/lib/types"
+import type { Patient, Appointment, ConsultationNote, VitalSigns, MedicalHistory, VaccineRecord } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
   programada: { label: "Programada", color: "bg-blue-100 text-blue-700" },
@@ -59,7 +58,7 @@ export default function PatientProfilePage({
 }) {
   const { id } = use(params)
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const [activeTab, setActiveTab] = useState("resumen")
   const [medicalSubTab, setMedicalSubTab] = useState("signos")
   const [patient, setPatient] = useState<Patient | null>(null)
@@ -74,7 +73,11 @@ export default function PatientProfilePage({
         setLoading(true)
         setError(null)
 
-        const res = await fetch(`/api/patients/${id}`)
+        const res = await fetch(`/api/patients/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+        })
 
         if (!res.ok) {
           if (res.status === 404) {
@@ -107,7 +110,7 @@ export default function PatientProfilePage({
     }
 
     fetchPatient()
-  }, [id, user?.clinic_id, router])
+  }, [id, user?.clinic_id, session?.access_token, router])
 
   if (loading) {
     return (
@@ -155,31 +158,31 @@ export default function PatientProfilePage({
   // Related data - using empty arrays until dedicated endpoints are available
   const appointments: Appointment[] = []
   const consultationNotes: ConsultationNote[] = []
-  const attachments: MedicalAttachment[] = []
+  const attachments: any[] = []
   const vitalSigns: VitalSigns[] = []
   const medicalHistory: MedicalHistory[] = []
-  const vaccines: Vaccine[] = []
-  const conversations = whatsappConversations.filter((c) => c.pacienteId === id)
+  const vaccines: VaccineRecord[] = []
+  const conversations: any[] = []
 
-  const initials = `${patient.nombre[0]}${patient.apellido[0]}`
-  const age = new Date().getFullYear() - new Date(patient.fechaNacimiento).getFullYear()
+  const initials = patient.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+  const age = patient.date_of_birth ? new Date().getFullYear() - new Date(patient.date_of_birth).getFullYear() : null
 
   const upcomingAppointments = appointments.filter(
-    (a) => new Date(a.fecha) >= new Date() && a.estado !== "cancelada"
+    (a) => a.fecha && new Date(a.fecha) >= new Date() && a.status !== "cancelled"
   )
 
-  // Separate medical history by type
-  const personalHistory = medicalHistory.filter((h) => h.tipo === "personal")
-  const familyHistory = medicalHistory.filter((h) => h.tipo === "familiar")
+  // Separate medical history by type (field names may differ from DB)
+  const personalHistory = medicalHistory.filter((h: any) => h.tipo === "personal" || h.condition_name)
+  const familyHistory = medicalHistory.filter((h: any) => h.tipo === "familiar")
 
   // Get latest vital signs
   const latestVitals = vitalSigns.length > 0 
-    ? vitalSigns.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())[0]
+    ? vitalSigns.sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime())[0]
     : null
 
   // Calculate BMI if we have latest vitals
-  const bmi = latestVitals 
-    ? (latestVitals.peso / Math.pow(latestVitals.talla / 100, 2)).toFixed(1)
+  const bmi = latestVitals && latestVitals.weight_kg && latestVitals.height_cm
+    ? (latestVitals.weight_kg / Math.pow(latestVitals.height_cm / 100, 2)).toFixed(1)
     : null
 
   return (
@@ -200,11 +203,11 @@ export default function PatientProfilePage({
             </Avatar>
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                {patient.nombre} {patient.apellido}
+                {patient.full_name}
               </h1>
               <p className="text-muted-foreground">
-                {age} años · {patient.genero === "masculino" ? "Masculino" : "Femenino"} · 
-                Paciente desde {new Date(patient.fechaRegistro).toLocaleDateString("es-MX", { month: "long", year: "numeric" })}
+                {age ? `${age} años` : ''} · {patient.gender === "male" ? "Masculino" : patient.gender === "female" ? "Femenino" : patient.gender || ''} · 
+                Paciente desde {new Date(patient.created_at).toLocaleDateString("es-MX", { month: "long", year: "numeric" })}
               </p>
             </div>
           </div>
@@ -247,7 +250,7 @@ export default function PatientProfilePage({
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Teléfono</p>
-                    <p className="font-medium text-foreground">{patient.telefono}</p>
+                    <p className="font-medium text-foreground">{patient.phone}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -265,7 +268,7 @@ export default function PatientProfilePage({
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Dirección</p>
-                    <p className="font-medium text-foreground">{patient.direccion}</p>
+                    <p className="font-medium text-foreground">{patient.address}</p>
                   </div>
                 </div>
               </CardContent>
@@ -278,12 +281,12 @@ export default function PatientProfilePage({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center">
-                    <Droplet className="w-4 h-4 text-red-500" />
+                  <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center">
+                    <Droplet className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Grupo Sanguíneo</p>
-                    <p className="font-medium text-foreground">{patient.grupoSanguineo}</p>
+                    <p className="text-sm text-muted-foreground">Estado</p>
+                    <p className="font-medium text-foreground capitalize">{patient.status}</p>
                   </div>
                 </div>
 
@@ -291,40 +294,10 @@ export default function PatientProfilePage({
 
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="w-4 h-4 text-orange-500" />
-                    <p className="text-sm font-medium text-foreground">Alergias</p>
+                    <FileText className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-foreground">Notas</p>
                   </div>
-                  {patient.alergias.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {patient.alergias.map((alergia) => (
-                        <Badge key={alergia} variant="destructive" className="text-xs">
-                          {alergia}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Sin alergias registradas</p>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Activity className="w-4 h-4 text-indigo-500" />
-                    <p className="text-sm font-medium text-foreground">Condiciones Crónicas</p>
-                  </div>
-                  {patient.condicionesCronicas.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {patient.condicionesCronicas.map((condicion) => (
-                        <Badge key={condicion} variant="secondary" className="text-xs">
-                          {condicion}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Sin condiciones registradas</p>
-                  )}
+                  <p className="text-sm text-muted-foreground">{patient.notes || "Sin notas registradas"}</p>
                 </div>
               </CardContent>
             </Card>
@@ -376,7 +349,7 @@ export default function PatientProfilePage({
                   Últimos Signos Vitales
                 </CardTitle>
                 <CardDescription>
-                  Registrado el {new Date(latestVitals.fecha).toLocaleDateString("es-MX", { 
+                  Registrado el {new Date(latestVitals.recorded_at).toLocaleDateString("es-MX", { 
                     day: "numeric", month: "long", year: "numeric" 
                   })}
                 </CardDescription>
@@ -385,27 +358,27 @@ export default function PatientProfilePage({
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                   <div className="p-3 bg-red-50 rounded-lg text-center">
                     <Heart className="w-5 h-5 text-red-500 mx-auto mb-1" />
-                    <p className="text-xl font-bold text-foreground">{latestVitals.presionSistolica}/{latestVitals.presionDiastolica}</p>
+                    <p className="text-xl font-bold text-foreground">{latestVitals.systolic_pressure}/{latestVitals.diastolic_pressure}</p>
                     <p className="text-xs text-muted-foreground">Presión (mmHg)</p>
                   </div>
                   <div className="p-3 bg-pink-50 rounded-lg text-center">
                     <Activity className="w-5 h-5 text-pink-500 mx-auto mb-1" />
-                    <p className="text-xl font-bold text-foreground">{latestVitals.frecuenciaCardiaca}</p>
+                    <p className="text-xl font-bold text-foreground">{latestVitals.heart_rate}</p>
                     <p className="text-xs text-muted-foreground">FC (bpm)</p>
                   </div>
                   <div className="p-3 bg-orange-50 rounded-lg text-center">
                     <Thermometer className="w-5 h-5 text-orange-500 mx-auto mb-1" />
-                    <p className="text-xl font-bold text-foreground">{latestVitals.temperatura}°C</p>
+                    <p className="text-xl font-bold text-foreground">{latestVitals.temperature_celsius}°C</p>
                     <p className="text-xs text-muted-foreground">Temperatura</p>
                   </div>
                   <div className="p-3 bg-blue-50 rounded-lg text-center">
                     <Scale className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-                    <p className="text-xl font-bold text-foreground">{latestVitals.peso} kg</p>
+                    <p className="text-xl font-bold text-foreground">{latestVitals.weight_kg} kg</p>
                     <p className="text-xs text-muted-foreground">Peso</p>
                   </div>
                   <div className="p-3 bg-indigo-50 rounded-lg text-center">
                     <Ruler className="w-5 h-5 text-indigo-500 mx-auto mb-1" />
-                    <p className="text-xl font-bold text-foreground">{latestVitals.talla} cm</p>
+                    <p className="text-xl font-bold text-foreground">{latestVitals.height_cm} cm</p>
                     <p className="text-xs text-muted-foreground">Talla</p>
                   </div>
                   {bmi && (
@@ -438,17 +411,17 @@ export default function PatientProfilePage({
                         <Calendar className="w-5 h-5 text-blue-600" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium text-foreground">{apt.motivo}</p>
+                        <p className="font-medium text-foreground">{apt.reason_for_visit}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(apt.fecha).toLocaleDateString("es-MX", {
+                          {apt.fecha && new Date(apt.fecha).toLocaleDateString("es-MX", {
                             weekday: "long",
                             day: "numeric",
                             month: "long",
                           })} a las {apt.hora}
                         </p>
                       </div>
-                      <Badge className={estadoConfig[apt.estado]?.color || "bg-gray-100 text-gray-700"}>
-                        {estadoConfig[apt.estado]?.label || apt.estado}
+                      <Badge className={estadoConfig[apt.status]?.color || "bg-gray-100 text-gray-700"}>
+                        {estadoConfig[apt.status]?.label || apt.status}
                       </Badge>
                     </Link>
                   ))}
@@ -476,7 +449,7 @@ export default function PatientProfilePage({
               ) : (
                 <div className="space-y-3">
                   {appointments
-                    .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+                    .sort((a, b) => new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime())
                     .map((apt) => (
                       <Link
                         key={apt.id}
@@ -485,21 +458,21 @@ export default function PatientProfilePage({
                       >
                         <div className="text-center min-w-16">
                           <p className="text-2xl font-bold text-foreground">
-                            {new Date(apt.fecha).getDate()}
+                            {apt.fecha ? new Date(apt.fecha).getDate() : ''}
                           </p>
                           <p className="text-xs text-muted-foreground uppercase">
-                            {new Date(apt.fecha).toLocaleDateString("es-MX", { month: "short" })}
+                            {apt.fecha ? new Date(apt.fecha).toLocaleDateString("es-MX", { month: "short" }) : ''}
                           </p>
                         </div>
                         <Separator orientation="vertical" className="h-12" />
                         <div className="flex-1">
-                          <p className="font-medium text-foreground">{apt.motivo}</p>
+                          <p className="font-medium text-foreground">{apt.reason_for_visit}</p>
                           <p className="text-sm text-muted-foreground">
-                            {apt.hora} · {apt.duracion} min · {apt.tipo}
+                            {apt.hora} · {apt.duration_minutes} min
                           </p>
                         </div>
-                        <Badge className={estadoConfig[apt.estado]?.color || "bg-gray-100 text-gray-700"}>
-                          {estadoConfig[apt.estado]?.label || apt.estado}
+                        <Badge className={estadoConfig[apt.status]?.color || "bg-gray-100 text-gray-700"}>
+                          {estadoConfig[apt.status]?.label || apt.status}
                         </Badge>
                       </Link>
                     ))}
@@ -582,10 +555,10 @@ export default function PatientProfilePage({
                 ) : (
                   <div className="space-y-4">
                     {vitalSigns
-                      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+                      .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime())
                       .map((vs, index) => {
                         const prevVs = vitalSigns[index + 1]
-                        const weightChange = prevVs ? vs.peso - prevVs.peso : 0
+                        const weightChange = prevVs && vs.weight_kg && prevVs.weight_kg ? vs.weight_kg - prevVs.weight_kg : 0
                         
                         return (
                           <div key={vs.id} className="p-4 border border-border rounded-lg">
@@ -596,15 +569,12 @@ export default function PatientProfilePage({
                                 </div>
                                 <div>
                                   <p className="font-medium text-foreground">
-                                    {new Date(vs.fecha).toLocaleDateString("es-MX", {
+                                    {new Date(vs.recorded_at).toLocaleDateString("es-MX", {
                                       day: "numeric",
                                       month: "long",
                                       year: "numeric",
                                     })}
                                   </p>
-                                  {vs.citaId && (
-                                    <p className="text-xs text-muted-foreground">Durante cita médica</p>
-                                  )}
                                 </div>
                               </div>
                               {index === 0 && (
@@ -614,20 +584,20 @@ export default function PatientProfilePage({
                             
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                               <div className="text-center p-2 bg-red-50 rounded">
-                                <p className="text-sm font-semibold text-foreground">{vs.presionSistolica}/{vs.presionDiastolica}</p>
+                                <p className="text-sm font-semibold text-foreground">{vs.systolic_pressure}/{vs.diastolic_pressure}</p>
                                 <p className="text-xs text-muted-foreground">Presión</p>
                               </div>
                               <div className="text-center p-2 bg-pink-50 rounded">
-                                <p className="text-sm font-semibold text-foreground">{vs.frecuenciaCardiaca} bpm</p>
+                                <p className="text-sm font-semibold text-foreground">{vs.heart_rate} bpm</p>
                                 <p className="text-xs text-muted-foreground">FC</p>
                               </div>
                               <div className="text-center p-2 bg-orange-50 rounded">
-                                <p className="text-sm font-semibold text-foreground">{vs.temperatura}°C</p>
+                                <p className="text-sm font-semibold text-foreground">{vs.temperature_celsius}°C</p>
                                 <p className="text-xs text-muted-foreground">Temp</p>
                               </div>
                               <div className="text-center p-2 bg-blue-50 rounded">
                                 <div className="flex items-center justify-center gap-1">
-                                  <p className="text-sm font-semibold text-foreground">{vs.peso} kg</p>
+                                  <p className="text-sm font-semibold text-foreground">{vs.weight_kg} kg</p>
                                   {weightChange !== 0 && (
                                     <span className={`text-xs ${weightChange > 0 ? "text-red-500" : "text-green-500"}`}>
                                       {weightChange > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -636,22 +606,22 @@ export default function PatientProfilePage({
                                 </div>
                                 <p className="text-xs text-muted-foreground">Peso</p>
                               </div>
-                              {vs.saturacionOxigeno && (
+                              {vs.oxygen_saturation_percent && (
                                 <div className="text-center p-2 bg-cyan-50 rounded">
-                                  <p className="text-sm font-semibold text-foreground">{vs.saturacionOxigeno}%</p>
+                                  <p className="text-sm font-semibold text-foreground">{vs.oxygen_saturation_percent}%</p>
                                   <p className="text-xs text-muted-foreground">SpO2</p>
                                 </div>
                               )}
-                              {vs.glucosa && (
+                              {vs.blood_glucose_mg_dl && (
                                 <div className="text-center p-2 bg-amber-50 rounded">
-                                  <p className="text-sm font-semibold text-foreground">{vs.glucosa} mg/dL</p>
+                                  <p className="text-sm font-semibold text-foreground">{vs.blood_glucose_mg_dl} mg/dL</p>
                                   <p className="text-xs text-muted-foreground">Glucosa</p>
                                 </div>
                               )}
                             </div>
                             
-                            {vs.notas && (
-                              <p className="mt-3 text-sm text-muted-foreground italic">{vs.notas}</p>
+                            {vs.notes && (
+                              <p className="mt-3 text-sm text-muted-foreground italic">{vs.notes}</p>
                             )}
                           </div>
                         )
@@ -691,28 +661,23 @@ export default function PatientProfilePage({
                       {personalHistory.map((h) => (
                         <div key={h.id} className="p-3 border border-border rounded-lg">
                           <div className="flex items-start gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                              h.categoria === "enfermedad" ? "bg-red-100" :
-                              h.categoria === "cirugia" ? "bg-purple-100" :
-                              h.categoria === "hospitalizacion" ? "bg-blue-100" : "bg-gray-100"
-                            }`}>
-                              {h.categoria === "enfermedad" && <Activity className="w-4 h-4 text-red-600" />}
-                              {h.categoria === "cirugia" && <Scissors className="w-4 h-4 text-purple-600" />}
-                              {h.categoria === "hospitalizacion" && <Building2 className="w-4 h-4 text-blue-600" />}
-                              {h.categoria === "otro" && <FileText className="w-4 h-4 text-gray-600" />}
+                            <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <Activity className="w-4 h-4 text-indigo-600" />
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center justify-between">
-                                <p className="font-medium text-foreground">{h.descripcion}</p>
-                                <Badge variant="outline" className="text-xs capitalize">{h.categoria}</Badge>
+                                <p className="font-medium text-foreground">{h.condition_name}</p>
+                                {h.severity && (
+                                  <Badge variant="outline" className="text-xs capitalize">{h.severity}</Badge>
+                                )}
                               </div>
-                              {h.fecha && (
+                              {h.diagnosis_date && (
                                 <p className="text-sm text-muted-foreground">
-                                  {new Date(h.fecha).toLocaleDateString("es-MX", { month: "long", year: "numeric" })}
+                                  {new Date(h.diagnosis_date).toLocaleDateString("es-MX", { month: "long", year: "numeric" })}
                                 </p>
                               )}
-                              {h.notas && (
-                                <p className="text-sm text-muted-foreground mt-1">{h.notas}</p>
+                              {h.notes && (
+                                <p className="text-sm text-muted-foreground mt-1">{h.notes}</p>
                               )}
                             </div>
                           </div>
@@ -754,13 +719,13 @@ export default function PatientProfilePage({
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center justify-between">
-                                <p className="font-medium text-foreground">{h.descripcion}</p>
-                                {h.parentesco && (
-                                  <Badge variant="secondary" className="text-xs">{h.parentesco}</Badge>
+                                <p className="font-medium text-foreground">{h.condition_name}</p>
+                                {h.status && (
+                                  <Badge variant="secondary" className="text-xs">{h.status}</Badge>
                                 )}
                               </div>
-                              {h.notas && (
-                                <p className="text-sm text-muted-foreground mt-1">{h.notas}</p>
+                              {h.notes && (
+                                <p className="text-sm text-muted-foreground mt-1">{h.notes}</p>
                               )}
                             </div>
                           </div>
@@ -798,7 +763,7 @@ export default function PatientProfilePage({
                 ) : (
                   <div className="space-y-3">
                     {vaccines
-                      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+                      .sort((a, b) => new Date(b.administration_date).getTime() - new Date(a.administration_date).getTime())
                       .map((v) => (
                         <div key={v.id} className="p-4 border border-border rounded-lg">
                           <div className="flex items-start gap-4">
@@ -807,45 +772,37 @@ export default function PatientProfilePage({
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center justify-between">
-                                <p className="font-medium text-foreground">{v.nombre}</p>
+                                <p className="font-medium text-foreground">{v.vaccine_name}</p>
                                 <Badge className="bg-green-100 text-green-700">Aplicada</Badge>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
                                 <div>
                                   <p className="text-xs text-muted-foreground">Fecha</p>
                                   <p className="text-sm text-foreground">
-                                    {new Date(v.fecha).toLocaleDateString("es-MX")}
+                                    {new Date(v.administration_date).toLocaleDateString("es-MX")}
                                   </p>
                                 </div>
-                                {v.dosis && (
+                                {v.dose_number != null && (
                                   <div>
                                     <p className="text-xs text-muted-foreground">Dosis</p>
-                                    <p className="text-sm text-foreground">{v.dosis}</p>
+                                    <p className="text-sm text-foreground">{v.dose_number}</p>
                                   </div>
                                 )}
-                                {v.lote && (
+                                {v.lot_number && (
                                   <div>
                                     <p className="text-xs text-muted-foreground">Lote</p>
-                                    <p className="text-sm text-foreground">{v.lote}</p>
+                                    <p className="text-sm text-foreground">{v.lot_number}</p>
                                   </div>
                                 )}
-                                {v.aplicadoPor && (
+                                {v.administered_by && (
                                   <div>
                                     <p className="text-xs text-muted-foreground">Aplicado por</p>
-                                    <p className="text-sm text-foreground">{v.aplicadoPor}</p>
+                                    <p className="text-sm text-foreground">{v.administered_by}</p>
                                   </div>
                                 )}
                               </div>
-                              {v.proximaDosis && (
-                                <div className="mt-2 p-2 bg-amber-50 rounded text-sm">
-                                  <span className="text-amber-700">Próxima dosis: </span>
-                                  <span className="text-amber-900 font-medium">
-                                    {new Date(v.proximaDosis).toLocaleDateString("es-MX")}
-                                  </span>
-                                </div>
-                              )}
-                              {v.notas && (
-                                <p className="text-sm text-muted-foreground mt-2 italic">{v.notas}</p>
+                              {v.notes && (
+                                <p className="text-sm text-muted-foreground mt-2 italic">{v.notes}</p>
                               )}
                             </div>
                           </div>
@@ -881,41 +838,44 @@ export default function PatientProfilePage({
                         className="p-4 border border-border rounded-lg space-y-3"
                       >
                         <div className="flex items-center justify-between">
-                          <p className="font-medium text-foreground">{note.diagnostico}</p>
+                          <p className="font-medium text-foreground">{note.diagnosis || note.chief_complaint}</p>
                           <span className="text-sm text-muted-foreground">
-                            {new Date(note.fecha).toLocaleDateString("es-MX")}
+                            {new Date(note.created_at).toLocaleDateString("es-MX")}
                           </span>
                         </div>
                         
-                        {note.sintomas.length > 0 && (
+                        {note.chief_complaint && (
                           <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">SÍNTOMAS</p>
-                            <div className="flex flex-wrap gap-1">
-                              {note.sintomas.map((s, i) => (
-                                <Badge key={i} variant="outline" className="text-xs">{s}</Badge>
-                              ))}
-                            </div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">MOTIVO DE CONSULTA</p>
+                            <p className="text-sm text-foreground">{note.chief_complaint}</p>
                           </div>
                         )}
                         
-                        <p className="text-sm text-muted-foreground">{note.observaciones}</p>
+                        {note.findings && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">HALLAZGOS</p>
+                            <p className="text-sm text-muted-foreground">{note.findings}</p>
+                          </div>
+                        )}
                         
-                        {note.recetas.length > 0 && (
+                        {note.treatment_plan && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">PLAN DE TRATAMIENTO</p>
+                            <p className="text-sm text-muted-foreground">{note.treatment_plan}</p>
+                          </div>
+                        )}
+                        
+                        {note.prescriptions_given && (
                           <div className="pt-2 border-t border-border">
                             <p className="text-xs font-medium text-muted-foreground mb-2">RECETAS</p>
-                            <div className="space-y-2">
-                              {note.recetas.map((receta) => (
-                                <div key={receta.id} className="p-2 bg-muted rounded">
-                                  <p className="font-medium text-foreground text-sm">{receta.medicamento}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {receta.dosis} - {receta.frecuencia} por {receta.duracion}
-                                  </p>
-                                  {receta.instrucciones && (
-                                    <p className="text-xs text-muted-foreground mt-1 italic">{receta.instrucciones}</p>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                            <p className="text-sm text-foreground">{note.prescriptions_given}</p>
+                          </div>
+                        )}
+                        
+                        {note.follow_up_instructions && (
+                          <div className="p-2 bg-muted rounded text-sm">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">SEGUIMIENTO</p>
+                            <p className="text-muted-foreground">{note.follow_up_instructions}</p>
                           </div>
                         )}
                       </div>
@@ -1009,7 +969,7 @@ export default function PatientProfilePage({
                         </Badge>
                       </div>
                       <div className="p-4 space-y-3 max-h-64 overflow-y-auto">
-                        {conv.mensajes.slice(-5).map((msg) => (
+                        {conv.mensajes.slice(-5).map((msg: any) => (
                           <div
                             key={msg.id}
                             className={`flex ${msg.tipo === "entrante" ? "justify-start" : "justify-end"}`}

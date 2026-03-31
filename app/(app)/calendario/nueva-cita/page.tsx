@@ -39,10 +39,9 @@ export default function NewAppointmentPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [patients, setPatients] = useState<Patient[]>([])
   const [formData, setFormData] = useState({
-    pacienteId: "",
+    patientId: "",
     hora: "",
     duracion: "30",
-    tipo: "consulta",
     motivo: "",
     notas: "",
   })
@@ -98,7 +97,7 @@ export default function NewAppointmentPage() {
       return
     }
 
-    if (!formData.pacienteId || !formData.hora || !formData.motivo || !date) {
+    if (!formData.patientId || !formData.hora || !formData.motivo || !date) {
       toast({ title: 'Por favor completa todos los campos requeridos' })
       return
     }
@@ -123,13 +122,12 @@ export default function NewAppointmentPage() {
           'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          pacienteId: formData.pacienteId,
-          fecha: fechaStr,
-          hora: formData.hora,
-          duracion: parseInt(formData.duracion),
-          tipo: formData.tipo,
-          motivo: formData.motivo,
-          notas: formData.notas || undefined,
+          patient_id: formData.patientId,
+          appointment_datetime: `${fechaStr}T${formData.hora}:00`,
+          duration_minutes: parseInt(formData.duracion),
+          status: 'scheduled',
+          reason_for_visit: formData.motivo,
+          notes: formData.notas || undefined,
         }),
       })
 
@@ -205,8 +203,8 @@ export default function NewAppointmentPage() {
                 <div className="space-y-2">
                   <Label htmlFor="paciente">Paciente</Label>
                   <Select
-                    value={formData.pacienteId}
-                    onValueChange={(v) => setFormData({ ...formData, pacienteId: v })}
+                    value={formData.patientId}
+                    onValueChange={(v) => setFormData({ ...formData, patientId: v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona un paciente" />
@@ -214,7 +212,7 @@ export default function NewAppointmentPage() {
                     <SelectContent>
                       {patients.map((patient) => (
                         <SelectItem key={patient.id} value={patient.id}>
-                          {patient.nombre} {patient.apellido}
+                          {patient.full_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -281,43 +279,23 @@ export default function NewAppointmentPage() {
                   </div>
                 </div>
 
-                {/* Type and Duration */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Tipo de Cita</Label>
-                    <Select
-                      value={formData.tipo}
-                      onValueChange={(v) => setFormData({ ...formData, tipo: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="consulta">Consulta</SelectItem>
-                        <SelectItem value="seguimiento">Seguimiento</SelectItem>
-                        <SelectItem value="revision">Revisión</SelectItem>
-                        <SelectItem value="urgencia">Urgencia</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Duración</Label>
-                    <Select
-                      value={formData.duracion}
-                      onValueChange={(v) => setFormData({ ...formData, duracion: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="15">15 minutos</SelectItem>
-                        <SelectItem value="30">30 minutos</SelectItem>
-                        <SelectItem value="45">45 minutos</SelectItem>
-                        <SelectItem value="60">60 minutos</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Duration */}
+                <div className="space-y-2">
+                  <Label>Duración</Label>
+                  <Select
+                    value={formData.duracion}
+                    onValueChange={(v) => setFormData({ ...formData, duracion: v })}
+                  >
+                    <SelectTrigger className="w-full md:w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="15">15 minutos</SelectItem>
+                      <SelectItem value="30">30 minutos</SelectItem>
+                      <SelectItem value="45">45 minutos</SelectItem>
+                      <SelectItem value="60">60 minutos</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Motivo */}

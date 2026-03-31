@@ -72,7 +72,7 @@ export default function OnboardingPage() {
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1)
     } else {
-      router.push("/login")
+      router.push("/auth/signup")
     }
   }
 
@@ -83,7 +83,7 @@ export default function OnboardingPage() {
   }
 
   const handleSkip = () => {
-    router.push("/login")
+    router.push("/auth/signup")
   }
 
   return (
@@ -322,7 +322,7 @@ export default function OnboardingPage() {
                 ))}
               </div>
               <Button onClick={handleNext} className="bg-teal-600 hover:bg-teal-700 text-white">
-                {currentStep === steps.length ? "Ir al Login" : "Siguiente"}
+                {currentStep === steps.length ? "Ir a Registro" : "Siguiente"}
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>

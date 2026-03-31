@@ -168,7 +168,7 @@ export async function PATCH(
     }
 
     // Prevent updating immutable fields
-    const immutableFields = ['id', 'clinicId', 'clinic_id', 'fechaRegistro']
+    const immutableFields = ['id', 'clinic_id', 'created_at']
     for (const field of immutableFields) {
       if (field in body) {
         return NextResponse.json(
@@ -187,14 +187,6 @@ export async function PATCH(
           { status: 400 }
         )
       }
-    }
-
-    // Validate genero if provided
-    if (body.genero && !['masculino', 'femenino', 'otro'].includes(body.genero)) {
-      return NextResponse.json(
-        { error: 'Invalid genero value', code: 'VALIDATION_ERROR' },
-        { status: 400 }
-      )
     }
 
     // Update patient using service layer

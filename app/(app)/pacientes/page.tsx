@@ -46,7 +46,7 @@ import { formatErrorMessage } from "@/lib/error-handling"
 import type { Patient } from "@/lib/types"
 
 export default function PatientsPage() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -59,7 +59,9 @@ export default function PatientsPage() {
       try {
         setLoading(true)
 
-        const res = await fetch("/api/patients")
+        const res = await fetch("/api/patients", {
+          headers: { 'Authorization': `Bearer ${session?.access_token}` },
+        })
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}))
@@ -81,12 +83,12 @@ export default function PatientsPage() {
   }, [user?.clinic_id])
 
   const filteredPatients = patients.filter((patient) => {
-    const fullName = `${patient.nombre} ${patient.apellido}`.toLowerCase()
+    const fullName = (patient.full_name || '').toLowerCase()
     const query = searchQuery.toLowerCase()
     return (
       fullName.includes(query) ||
-      patient.email.toLowerCase().includes(query) ||
-      patient.telefono.includes(query)
+      (patient.email || '').toLowerCase().includes(query) ||
+      (patient.phone || '').includes(query)
     )
   })
 
@@ -196,12 +198,12 @@ export default function PatientsPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredPatients.map((patient) => {
-                      const initials = `${patient.nombre[0]}${patient.apellido[0]}`
-                      const age = calculateAge(patient.fechaNacimiento)
+                      const initials = patient.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || ''
+                      const age = patient.date_of_birth ? calculateAge(patient.date_of_birth) : null
 
                       return (
-                        <TableRow 
-                          key={patient.id} 
+                        <TableRow
+                          key={patient.id}
                           className="hover:bg-teal-50/50 transition-colors duration-200"
                         >
                           <TableCell>
@@ -216,10 +218,10 @@ export default function PatientsPage() {
                               </Avatar>
                               <div>
                                 <p className="font-medium text-foreground group-hover:text-teal-700 transition-colors duration-200">
-                                  {patient.nombre} {patient.apellido}
+                                  {patient.full_name}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {age} años · {patient.genero === "masculino" ? "Masculino" : "Femenino"}
+                                  {age !== null ? `${age} años · ` : ''}{patient.gender === "masculino" ? "Masculino" : patient.gender === "femenino" ? "Femenino" : patient.gender || ''}
                                 </p>
                               </div>
                             </Link>
@@ -228,17 +230,17 @@ export default function PatientsPage() {
                             <div className="space-y-1">
                               <div className="flex items-center gap-2 text-sm">
                                 <Phone className="w-3.5 h-3.5 text-teal-600" />
-                                <span>{patient.telefono}</span>
+                                <span>{patient.phone || '—'}</span>
                               </div>
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Mail className="w-3.5 h-3.5" />
-                                <span className="truncate max-w-40">{patient.email}</span>
+                                <span className="truncate max-w-40">{patient.email || '—'}</span>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
-                            <Badge variant="outline" className="font-mono bg-red-50 text-red-700 border-red-200">
-                              {patient.grupoSanguineo}
+                            <Badge variant="outline" className="font-mono bg-gray-50 text-gray-500 border-gray-200">
+                              —
                             </Badge>
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
@@ -257,7 +259,7 @@ export default function PatientsPage() {
                             </Tooltip>
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm hidden md:table-cell">
-                            {formatDateShort(patient.fechaRegistro)}
+                            {formatDateShort(patient.created_at)}
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>
@@ -294,8 +296,8 @@ export default function PatientsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredPatients.map((patient) => {
-              const initials = `${patient.nombre[0]}${patient.apellido[0]}`
-              const age = calculateAge(patient.fechaNacimiento)
+              const initials = patient.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || ''
+              const age = patient.date_of_birth ? calculateAge(patient.date_of_birth) : null
 
               return (
                 <Card key={patient.id} className="card-hover group">
@@ -312,54 +314,28 @@ export default function PatientsPage() {
                             href={`/pacientes/${patient.id}`}
                             className="font-medium text-foreground hover:text-teal-700 transition-colors duration-200"
                           >
-                            {patient.nombre} {patient.apellido}
+                            {patient.full_name}
                           </Link>
                           <p className="text-sm text-muted-foreground">
-                            {age} años · {patient.genero === "masculino" ? "M" : "F"}
+                            {age !== null ? `${age} años · ` : ''}{patient.gender === "masculino" ? "M" : patient.gender === "femenino" ? "F" : patient.gender?.charAt(0) || ''}
                           </p>
                         </div>
                       </div>
-                      <Badge variant="outline" className="font-mono bg-red-50 text-red-700 border-red-200">
-                        {patient.grupoSanguineo}
+                      <Badge variant="outline" className="font-mono bg-gray-50 text-gray-500 border-gray-200">
+                        —
                       </Badge>
                     </div>
 
                     <div className="space-y-2 text-sm mb-4">
                       <div className="flex items-center gap-2">
                         <Phone className="w-4 h-4 text-teal-600" />
-                        <span>{patient.telefono}</span>
+                        <span>{patient.phone || '—'}</span>
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Mail className="w-4 h-4" />
-                        <span className="truncate">{patient.email}</span>
+                        <span className="truncate">{patient.email || '—'}</span>
                       </div>
                     </div>
-
-                    {patient.alergias.length > 0 && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex flex-wrap gap-1.5 mb-4">
-                            <AlertTriangle className="w-4 h-4 text-amber-600" />
-                            {patient.alergias.slice(0, 2).map((alergia) => (
-                              <Badge key={alergia} variant="destructive" className="text-xs bg-amber-100 text-amber-800 hover:bg-amber-200">
-                                {alergia}
-                              </Badge>
-                            ))}
-                            {patient.alergias.length > 2 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{patient.alergias.length - 2}
-                              </Badge>
-                            )}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="font-medium mb-1">Alergias registradas:</p>
-                          <ul className="text-sm">
-                            {patient.alergias.map(a => <li key={a}>• {a}</li>)}
-                          </ul>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
 
                     <div className="flex items-center justify-between pt-4 border-t border-border">
                       <Tooltip>

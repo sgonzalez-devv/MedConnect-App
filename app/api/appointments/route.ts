@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       const toDateTime = toDate ? new Date(toDate).getTime() : Number.MAX_VALUE
 
       filtered = appointments.filter(apt => {
-        const aptDateTime = new Date(`${apt.fecha}T${apt.hora}`).getTime()
+        const aptDateTime = apt.appointment_datetime ? new Date(apt.appointment_datetime).getTime() : 0
         return aptDateTime >= fromDateTime && aptDateTime <= toDateTime
       })
     }
@@ -143,15 +143,13 @@ export async function GET(request: NextRequest) {
  * 
  * Request body:
  * {
- *   pacienteId: string (required)
- *   fecha: string (required, YYYY-MM-DD format)
- *   hora: string (required, HH:MM format)
- *   duracion: number (required, minutes)
- *   tipo: "consulta" | "seguimiento" | "urgencia" | "revision" (required)
- *   motivo: string (required)
- *   notas: string (optional)
- *   estado: string (optional, default "programada")
- *   creadoPorBot: boolean (optional, default false)
+ *   patient_id: string (required)
+ *   appointment_datetime: string (required, ISO 8601 format)
+ *   duration_minutes: number (required, minutes)
+ *   reason_for_visit: string (required)
+ *   notes: string (optional)
+ *   status: string (optional, default "scheduled")
+ *   doctor_id: string (optional)
  * }
  * 
  * @requirement API-04
@@ -187,7 +185,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate required fields
-    const requiredFields = ['pacienteId', 'fecha', 'hora', 'duracion', 'tipo', 'motivo']
+    const requiredFields = ['patient_id', 'appointment_datetime', 'duration_minutes', 'reason_for_visit']
     const missingFields = requiredFields.filter(field => !body[field])
 
     if (missingFields.length > 0) {
@@ -200,52 +198,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate fecha format (YYYY-MM-DD)
-    const fechaRegex = /^\d{4}-\d{2}-\d{2}$/
-    if (!fechaRegex.test(body.fecha)) {
+    // Validate appointment_datetime format (ISO 8601)
+    const datetimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/
+    if (!datetimeRegex.test(body.appointment_datetime)) {
       return NextResponse.json(
-        { error: 'Invalid fecha format, expected YYYY-MM-DD', code: 'VALIDATION_ERROR' },
+        { error: 'Invalid appointment_datetime format, expected ISO 8601 (YYYY-MM-DDTHH:MM)', code: 'VALIDATION_ERROR' },
         { status: 400 }
       )
     }
 
-    // Validate hora format (HH:MM)
-    const horaRegex = /^\d{2}:\d{2}$/
-    if (!horaRegex.test(body.hora)) {
-      return NextResponse.json(
-        { error: 'Invalid hora format, expected HH:MM', code: 'VALIDATION_ERROR' },
-        { status: 400 }
-      )
-    }
-
-    // Validate duracion is positive number
-    const duracion = parseInt(body.duracion)
-    if (isNaN(duracion) || duracion < 5) {
+    // Validate duration_minutes is positive number
+    const duration_minutes = parseInt(body.duration_minutes)
+    if (isNaN(duration_minutes) || duration_minutes < 5) {
       return NextResponse.json(
         { error: 'Duration must be at least 5 minutes', code: 'VALIDATION_ERROR' },
         { status: 400 }
       )
     }
 
-    // Validate tipo enum
-    if (!['consulta', 'seguimiento', 'urgencia', 'revision'].includes(body.tipo)) {
-      return NextResponse.json(
-        { error: 'Invalid appointment type', code: 'VALIDATION_ERROR' },
-        { status: 400 }
-      )
-    }
-
     // Prepare appointment data
-    const appointmentData: Omit<Appointment, 'id' | 'clinicId'> = {
-      pacienteId: body.pacienteId,
-      fecha: body.fecha,
-      hora: body.hora,
-      duracion,
-      tipo: body.tipo,
-      estado: body.estado || 'programada',
-      motivo: body.motivo,
-      notas: body.notas || undefined,
-      creadoPorBot: body.creadoPorBot === true,
+    const appointmentData: Omit<Appointment, 'id' | 'clinic_id'> = {
+      patient_id: body.patient_id,
+      appointment_datetime: body.appointment_datetime,
+      duration_minutes,
+      status: body.status || 'scheduled',
+      reason_for_visit: body.reason_for_visit,
+      notes: body.notes || undefined,
+      doctor_id: body.doctor_id || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }
 
     // Create appointment using service layer

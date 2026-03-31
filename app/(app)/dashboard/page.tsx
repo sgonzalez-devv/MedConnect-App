@@ -33,16 +33,16 @@ import { formatErrorMessage } from "@/lib/error-handling"
 import type { Appointment } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
-  programada: { label: "Programada", color: "bg-blue-100 text-blue-700" },
-  confirmada: { label: "Confirmada", color: "bg-teal-100 text-teal-700" },
-  en_curso: { label: "En curso", color: "bg-indigo-100 text-indigo-700" },
-  completada: { label: "Completada", color: "bg-green-100 text-green-700" },
-  cancelada: { label: "Cancelada", color: "bg-red-100 text-red-700" },
-  no_asistio: { label: "No asistió", color: "bg-gray-100 text-gray-700" },
+  scheduled: { label: "Programada", color: "bg-blue-100 text-blue-700" },
+  confirmed: { label: "Confirmada", color: "bg-teal-100 text-teal-700" },
+  in_progress: { label: "En curso", color: "bg-indigo-100 text-indigo-700" },
+  completed: { label: "Completada", color: "bg-green-100 text-green-700" },
+  cancelled: { label: "Cancelada", color: "bg-red-100 text-red-700" },
+  no_show: { label: "No asistió", color: "bg-gray-100 text-gray-700" },
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [patientsCount, setPatientsCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -57,10 +57,11 @@ export default function DashboardPage() {
         setError(null)
 
         const today = new Date().toISOString().split("T")[0]
+        const headers = { 'Authorization': `Bearer ${session?.access_token}` }
 
         const [appointmentsRes, patientsRes] = await Promise.all([
-          fetch(`/api/appointments?fromDate=${today}&toDate=${today}`),
-          fetch(`/api/patients?limit=1`),
+          fetch(`/api/appointments?fromDate=${today}&toDate=${today}`, { headers }),
+          fetch(`/api/patients?limit=10000`, { headers }),
         ])
 
         if (!appointmentsRes.ok) {
@@ -101,7 +102,7 @@ export default function DashboardPage() {
     {
       title: "Citas de Hoy",
       value: todayAppointments.length,
-      description: `${todayAppointments.filter((a) => a.estado === "confirmada").length} confirmadas`,
+      description: `${todayAppointments.filter((a) => a.status === "confirmed").length} confirmadas`,
       icon: Calendar,
       color: "text-blue-600",
       bgColor: "bg-gradient-to-br from-blue-50 to-blue-100",
@@ -277,30 +278,28 @@ export default function DashboardPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-foreground truncate group-hover:text-teal-700 transition-colors duration-200">
-                            {appointment.paciente?.nombre} {appointment.paciente?.apellido}
+                            {appointment.patient?.full_name}
                           </p>
-                          {appointment.creadoPorBot && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                  Bot
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>Cita agendada por el bot de WhatsApp</TooltipContent>
-                            </Tooltip>
-                          )}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                Bot
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>Cita agendada por el bot de WhatsApp</TooltipContent>
+                          </Tooltip>
                         </div>
                         <p className="text-sm text-muted-foreground truncate">
-                          {appointment.motivo}
+                          {appointment.reason_for_visit}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-bold text-foreground text-lg">{appointment.hora}</p>
                         <Badge
                           variant="secondary"
-                          className={estadoConfig[appointment.estado]?.color || "bg-gray-100 text-gray-700"}
+                          className={estadoConfig[appointment.status]?.color || "bg-gray-100 text-gray-700"}
                         >
-                          {estadoConfig[appointment.estado]?.label || appointment.estado}
+                          {estadoConfig[appointment.status]?.label || appointment.status}
                         </Badge>
                       </div>
                     </Link>
@@ -404,7 +403,7 @@ export default function DashboardPage() {
                     activeConversations.slice(0, 3).map((conversation) => {
                       const lastMessage =
                         conversation.mensajes[conversation.mensajes.length - 1]
-                      const initials = `${conversation.paciente.nombre[0]}${conversation.paciente.apellido[0]}`
+                      const initials = `${conversation.paciente?.full_name?.charAt(0) || ''}`
 
                       return (
                         <Link
@@ -419,7 +418,7 @@ export default function DashboardPage() {
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground truncate group-hover:text-green-700 transition-colors duration-200">
-                              {conversation.paciente.nombre} {conversation.paciente.apellido}
+                              {conversation.paciente?.full_name}
                             </p>
                             <p className="text-xs text-muted-foreground truncate">
                               {lastMessage.contenido}
@@ -451,7 +450,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-sm text-teal-700 font-medium">Rendimiento</p>
                     <p className="text-2xl font-bold text-teal-800">
-                      {Math.round((todayAppointments.filter(a => a.estado === 'completada').length / Math.max(todayAppointments.length, 1)) * 100)}%
+                      {Math.round((todayAppointments.filter(a => a.status === 'completed').length / Math.max(todayAppointments.length, 1)) * 100)}%
                     </p>
                     <p className="text-xs text-teal-600">Citas completadas hoy</p>
                   </div>

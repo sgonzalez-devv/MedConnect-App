@@ -42,19 +42,12 @@ import { toast } from "@/hooks/use-toast"
 import type { Appointment, Patient } from "@/lib/types"
 
 const estadoConfig: Record<string, { label: string; color: string }> = {
-  programada: { label: "Programada", color: "bg-blue-100 text-blue-700 border-blue-200" },
-  confirmada: { label: "Confirmada", color: "bg-teal-100 text-teal-700 border-teal-200" },
-  en_curso: { label: "En curso", color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
-  completada: { label: "Completada", color: "bg-green-100 text-green-700 border-green-200" },
-  cancelada: { label: "Cancelada", color: "bg-red-100 text-red-700 border-red-200" },
-  no_asistio: { label: "No asistió", color: "bg-gray-100 text-gray-700 border-gray-200" },
-}
-
-const tipoConfig: Record<string, { label: string; color: string }> = {
-  consulta: { label: "Consulta", color: "bg-blue-500" },
-  seguimiento: { label: "Seguimiento", color: "bg-teal-500" },
-  urgencia: { label: "Urgencia", color: "bg-red-500" },
-  revision: { label: "Revisión", color: "bg-indigo-500" },
+  scheduled: { label: "Programada", color: "bg-blue-100 text-blue-700 border-blue-200" },
+  confirmed: { label: "Confirmada", color: "bg-teal-100 text-teal-700 border-teal-200" },
+  in_progress: { label: "En curso", color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  completed: { label: "Completada", color: "bg-green-100 text-green-700 border-green-200" },
+  cancelled: { label: "Cancelada", color: "bg-red-100 text-red-700 border-red-200" },
+  no_show: { label: "No asistió", color: "bg-gray-100 text-gray-700 border-gray-200" },
 }
 
 const DIAS_SEMANA = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
@@ -143,8 +136,8 @@ export default function CalendarPage() {
   const patientMap = new Map(patients.map(p => [p.id, p]))
   const allAppointments = appointments.map(apt => ({
     ...apt,
-    paciente: apt.pacienteId ? patientMap.get(apt.pacienteId) : undefined,
-  })).filter(apt => apt.paciente) as (Appointment & { paciente: Patient })[]
+    patient: apt.patient_id ? patientMap.get(apt.patient_id) : undefined,
+  })).filter(apt => apt.patient) as (Appointment & { patient: Patient })[]
 
   // Format date consistently
   const formatDateStr = (date: Date) => {
@@ -162,17 +155,11 @@ export default function CalendarPage() {
 
   // Sort by time
   const sortedAppointments = [...filteredAppointments].sort((a, b) =>
-    a.hora.localeCompare(b.hora)
+    (a.hora ?? '').localeCompare(b.hora ?? '')
   )
 
-  // Get dates that have appointments with their types
-  const appointmentsByDate = allAppointments.reduce((acc, apt) => {
-    if (!acc[apt.fecha]) {
-      acc[apt.fecha] = new Set<string>()
-    }
-    acc[apt.fecha].add(apt.tipo)
-    return acc
-  }, {} as Record<string, Set<string>>)
+  // Get dates that have appointments
+  const appointmentDates = new Set(allAppointments.map(apt => apt.fecha))
 
   const navigateDate = (direction: "prev" | "next") => {
     const newDate = new Date(selectedDate)
@@ -300,13 +287,7 @@ export default function CalendarPage() {
                   const dateStr = formatDateStr(date)
                   const isSelected = dateStr === selectedDateStr
                   const isToday = dateStr === todayStr
-                  const appointmentTypes = appointmentsByDate[dateStr]
-                  const hasAppointments = !!appointmentTypes
-                  
-                  // Get unique types for this date (up to 4 dots)
-                  const typeColors = hasAppointments 
-                    ? Array.from(appointmentTypes).slice(0, 4).map(tipo => tipoConfig[tipo]?.color || "bg-blue-500")
-                    : []
+                  const hasAppointments = appointmentDates.has(dateStr)
                   
                   return (
                     <Tooltip key={idx}>
@@ -325,42 +306,19 @@ export default function CalendarPage() {
                         >
                           {date.getDate()}
                           {hasAppointments && !isSelected && (
-                            <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
-                              {typeColors.map((color, i) => (
-                                <span key={i} className={`w-1.5 h-1.5 rounded-full ${color}`} />
-                              ))}
+                            <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
                             </span>
                           )}
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>
                         {formatDateShort(date)}
-                        {hasAppointments && (
-                          <>
-                            {" - "}
-                            {Array.from(appointmentTypes).map(t => tipoConfig[t]?.label).join(", ")}
-                          </>
-                        )}
+                        {hasAppointments && " - Tiene citas"}
                       </TooltipContent>
                     </Tooltip>
                   )
                 })}
-              </div>
-
-              {/* Legend */}
-              <div className="mt-6 pt-4 border-t border-border">
-                <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                  Tipos de Cita
-                </h4>
-                <div className="space-y-2">
-                  {Object.entries(tipoConfig).map(([key, value]) => (
-                    <div key={key} className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${value.color}`} />
-                      <span className="text-sm text-muted-foreground">{value.label}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
 
               {/* Quick Actions */}
@@ -453,7 +411,7 @@ export default function CalendarPage() {
                     <AppointmentCard
                       key={appointment.id}
                       appointment={appointment}
-                      patient={appointment.paciente}
+                      patient={appointment.patient}
                     />
                   ))}
                 </div>
@@ -473,8 +431,7 @@ function AppointmentCard({
   appointment: Appointment
   patient: Patient
 }) {
-  const estado = estadoConfig[appointment.estado] || estadoConfig.programada
-  const tipo = tipoConfig[appointment.tipo] || tipoConfig.consulta
+  const estado = estadoConfig[appointment.status] || estadoConfig.scheduled
 
   return (
     <TooltipProvider>
@@ -483,7 +440,7 @@ function AppointmentCard({
         className="flex items-stretch rounded-lg border border-border overflow-hidden hover:shadow-lg hover:border-teal-200 transition-all duration-200 group"
       >
         {/* Left accent bar */}
-        <div className={`w-1.5 ${tipo.color} group-hover:w-2 transition-all duration-200`} />
+        <div className="w-1.5 bg-teal-500 group-hover:w-2 transition-all duration-200" />
 
         <div className="flex-1 p-4 flex flex-col md:flex-row md:items-center gap-4">
           {/* Time */}
@@ -491,7 +448,7 @@ function AppointmentCard({
             <p className="text-lg font-bold text-foreground">{appointment.hora}</p>
             <Tooltip>
               <TooltipTrigger asChild>
-                <p className="text-xs text-muted-foreground cursor-help">{appointment.duracion} min</p>
+                <p className="text-xs text-muted-foreground cursor-help">{appointment.duration_minutes} min</p>
               </TooltipTrigger>
               <TooltipContent>Duración de la cita</TooltipContent>
             </Tooltip>
@@ -502,31 +459,16 @@ function AppointmentCard({
 
           {/* Patient Info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-medium text-foreground truncate group-hover:text-teal-700 transition-colors duration-200">
-                {patient.nombre} {patient.apellido}
-              </p>
-              {appointment.creadoPorBot && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge variant="outline" className="text-xs shrink-0 bg-green-50 text-green-700 border-green-200">
-                      Bot
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>Esta cita fue agendada por el bot de WhatsApp</TooltipContent>
-                </Tooltip>
-              )}
-            </div>
+            <p className="font-medium text-foreground truncate group-hover:text-teal-700 transition-colors duration-200">
+              {patient.full_name}
+            </p>
             <p className="text-sm text-muted-foreground truncate">
-              {appointment.motivo}
+              {appointment.reason_for_visit}
             </p>
           </div>
 
-          {/* Type & Status */}
+          {/* Status */}
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            <Badge variant="secondary" className="text-xs">
-              {tipo.label}
-            </Badge>
             <Badge className={`text-xs border ${estado.color}`}>
               {estado.label}
             </Badge>

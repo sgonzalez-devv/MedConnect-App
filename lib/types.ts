@@ -1,4 +1,4 @@
-// Authentication types (Phase 1)
+// Authentication types
 export interface AuthUser {
   id: string // UUID from Supabase Auth
   email: string
@@ -14,71 +14,166 @@ export interface AuthSession {
   expires_at: number // Unix timestamp
 }
 
+// Database-aligned interfaces
+
 export interface Patient {
   id: string
-  clinicId: string
-  nombre: string
-  apellido: string
-  email: string
-  telefono: string
-  fechaNacimiento: string
-  genero: "masculino" | "femenino" | "otro"
-  direccion: string
-  alergias: string[]
-  condicionesCronicas: string[]
-  grupoSanguineo: string
-  avatar?: string
-  fechaRegistro: string
+  clinic_id: string
+  full_name: string
+  date_of_birth: string | null
+  gender: string | null
+  email: string | null
+  phone: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  zip_code: string | null
+  country: string | null
+  id_document: string | null
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
+  notes: string | null
+  status: string
+  created_at: string
+  updated_at: string
 }
 
 export interface Appointment {
   id: string
-  clinicId: string
-  pacienteId: string
-  paciente?: Patient
-  fecha: string
-  hora: string
-  duracion: number // minutos
-  tipo: "consulta" | "seguimiento" | "urgencia" | "revision"
-  estado: "programada" | "confirmada" | "en_curso" | "completada" | "cancelada" | "no_asistio"
-  motivo: string
-  notas?: string
-  creadoPorBot: boolean
+  clinic_id: string
+  patient_id: string
+  doctor_id: string | null
+  appointment_datetime: string
+  duration_minutes: number
+  status: string
+  reason_for_visit: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+  // Computed/derived properties for frontend convenience
+  patient?: Patient
+  fecha?: string // derived: YYYY-MM-DD from appointment_datetime
+  hora?: string // derived: HH:MM from appointment_datetime
+}
+
+export interface DoctorProfile {
+  id: string
+  user_id: string
+  clinic_id: string
+  specialization: string | null
+  license_number: string | null
+  biography: string | null
+  availability_monday: string | null
+  availability_tuesday: string | null
+  availability_wednesday: string | null
+  availability_thursday: string | null
+  availability_friday: string | null
+  availability_saturday: string | null
+  availability_sunday: string | null
+  office_phone: string | null
+  office_email: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface ConsultationNote {
   id: string
-  clinicId: string
-  pacienteId: string
-  citaId: string
-  fecha: string
-  diagnostico: string
-  sintomas: string[]
-  tratamiento: string
-  recetas: Prescription[]
-  observaciones: string
-  doctorId: string
+  clinic_id: string
+  appointment_id: string | null
+  patient_id: string
+  doctor_id: string | null
+  chief_complaint: string | null
+  findings: string | null
+  diagnosis: string | null
+  treatment_plan: string | null
+  prescriptions_given: string | null
+  follow_up_instructions: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface VitalSigns {
+  id: string
+  clinic_id: string
+  patient_id: string
+  recorded_at: string
+  temperature_celsius: number | null
+  systolic_pressure: number | null
+  diastolic_pressure: number | null
+  heart_rate: number | null
+  respiratory_rate: number | null
+  oxygen_saturation_percent: number | null
+  weight_kg: number | null
+  height_cm: number | null
+  blood_glucose_mg_dl: number | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MedicalHistory {
+  id: string
+  clinic_id: string
+  patient_id: string
+  condition_name: string
+  diagnosis_date: string | null
+  status: string
+  severity: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface VaccineRecord {
+  id: string
+  clinic_id: string
+  patient_id: string
+  vaccine_name: string
+  dose_number: number | null
+  administration_date: string
+  lot_number: string | null
+  route_of_administration: string | null
+  site_of_injection: string | null
+  administered_by: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Attachment {
+  id: string
+  clinic_id: string
+  patient_id: string
+  document_type: string | null
+  file_name: string
+  file_path: string
+  file_size_bytes: number | null
+  file_mime_type: string | null
+  uploaded_by_doctor_id: string | null
+  description: string | null
+  uploaded_at: string
+  created_at: string
+  updated_at: string
 }
 
 export interface Prescription {
   id: string
-  medicamento: string
-  dosis: string
-  frecuencia: string
-  duracion: string
-  instrucciones?: string
+  clinic_id: string
+  patient_id: string
+  doctor_id: string | null
+  medication_name: string
+  dosage_amount: number | null
+  dosage_unit: string | null
+  frequency: string | null
+  duration_days: number | null
+  instructions: string | null
+  status: string
+  prescribed_at: string
+  created_at: string
+  updated_at: string
 }
 
-export interface MedicalAttachment {
-  id: string
-  clinicId: string
-  pacienteId: string
-  tipo: "laboratorio" | "imagen" | "documento"
-  nombre: string
-  fecha: string
-  url: string
-  descripcion?: string
-}
+// Mock interfaces (no DB tables yet)
 
 export interface WhatsAppConversation {
   id: string
@@ -87,13 +182,13 @@ export interface WhatsAppConversation {
   paciente?: Patient
   mensajes: WhatsAppMessage[]
   ultimaActualizacion: string
-  estado: "activa" | "pendiente" | "resuelta"
+  estado: 'activa' | 'pendiente' | 'resuelta'
 }
 
 export interface WhatsAppMessage {
   id: string
   contenido: string
-  tipo: "entrante" | "saliente" | "bot"
+  tipo: 'entrante' | 'saliente' | 'bot'
   timestamp: string
   leido: boolean
 }
@@ -101,80 +196,19 @@ export interface WhatsAppMessage {
 export interface Notification {
   id: string
   clinicId: string
-  tipo: "cita" | "mensaje" | "recordatorio" | "sistema"
+  tipo: 'cita' | 'mensaje' | 'recordatorio' | 'sistema'
   titulo: string
   mensaje: string
   timestamp: string
   leida: boolean
   accion?: {
-    tipo: "ver_cita" | "ver_paciente" | "ver_mensaje"
+    tipo: 'ver_cita' | 'ver_paciente' | 'ver_mensaje'
     id: string
   }
 }
 
-export interface DoctorProfile {
-  id: string
-  nombre: string
-  especialidad: string
-  email: string
-  telefono: string
-  horarioInicio: string
-  horarioFin: string
-  diasLaborales: number[]
-  duracionCitaDefault: number
-  avatar?: string
-}
-
-// Medical Record Types
-export interface VitalSigns {
-  id: string
-  pacienteId: string
-  citaId?: string
-  fecha: string
-  presionSistolica: number
-  presionDiastolica: number
-  frecuenciaCardiaca: number
-  temperatura: number
-  peso: number
-  talla: number
-  saturacionOxigeno?: number
-  glucosa?: number
-  notas?: string
-}
-
-export interface MedicalHistory {
-  id: string
-  pacienteId: string
-  tipo: "personal" | "familiar"
-  categoria: "enfermedad" | "cirugia" | "hospitalizacion" | "otro"
-  descripcion: string
-  fecha?: string
-  parentesco?: string // Para antecedentes familiares
-  notas?: string
-}
-
-export interface Vaccine {
-  id: string
-  pacienteId: string
-  nombre: string
-  fecha: string
-  dosis?: string
-  lote?: string
-  proximaDosis?: string
-  aplicadoPor?: string
-  notas?: string
-}
-
-export interface MedicalRecord {
-  pacienteId: string
-  signosVitales: VitalSigns[]
-  antecedentes: MedicalHistory[]
-  vacunas: Vaccine[]
-  notasConsulta: ConsultationNote[]
-  archivosAdjuntos: MedicalAttachment[]
-}
-
 // Clinic and Multi-Clinic Types
+
 export interface ClinicColorPalette {
   id: string
   presetName: 'teal' | 'blue' | 'indigo' | 'green' | 'purple'
@@ -207,20 +241,9 @@ export interface GroupMetrics {
 }
 
 // ============================================================================
-// API Response & Request Types (Phase 4)
+// API Response & Request Types
 // ============================================================================
 
-/**
- * Standard API response wrapper for all service layer operations
- * 
- * @requirement API-01
- * @example
- * const response: ApiResponse<Patient[]> = {
- *   data: [...],
- *   status: 200,
- *   timestamp: "2026-03-30T14:30:00Z"
- * }
- */
 export interface ApiResponse<T> {
   data?: T
   error?: string
@@ -228,77 +251,50 @@ export interface ApiResponse<T> {
   timestamp?: string
 }
 
-/**
- * Standard API error response structure
- * 
- * Used by error handlers to provide consistent error information
- * to frontend components without exposing database details.
- * 
- * @requirement ERR-01, ERR-02, ERR-03, ERR-04, ERR-05
- */
 export interface ApiError {
-  code: string // Error category: AUTH_ERROR, CLINIC_ISOLATION_ERROR, VALIDATION_ERROR, CONNECTION_ERROR
-  message: string // User-friendly message (never raw DB errors)
-  details?: unknown // Technical details for logging (not sent to user)
+  code: string
+  message: string
+  details?: unknown
   timestamp: string
 }
 
-/**
- * Request type for creating a new patient via forms
- * 
- * @requirement API-07
- */
 export interface CreatePatientRequest {
-  nombre: string
-  apellido: string
+  full_name: string
+  date_of_birth: string
+  gender: string
   email: string
-  telefono: string
-  fechaNacimiento: string
-  genero: 'masculino' | 'femenino' | 'otro'
-  direccion: string
-  alergias?: string[]
-  condicionesCronicas?: string[]
-  grupoSanguineo?: string
-  avatar?: string
+  phone: string
+  address: string
+  city?: string
+  state?: string
+  zip_code?: string
+  country?: string
+  id_document?: string
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
+  notes?: string
+  status?: string
 }
 
-/**
- * Request type for updating an appointment via forms
- * 
- * @requirement API-08
- */
-export interface UpdateAppointmentRequest {
-  fecha?: string
-  hora?: string
-  duracion?: number
-  tipo?: 'consulta' | 'seguimiento' | 'urgencia' | 'revision'
-  estado?: 'programada' | 'confirmada' | 'en_curso' | 'completada' | 'cancelada' | 'no_asistio'
-  motivo?: string
-  notas?: string
-}
-
-/**
- * Request type for creating an appointment via forms
- * 
- * @requirement API-07
- */
 export interface CreateAppointmentRequest {
-  pacienteId: string
-  fecha: string
-  hora: string
-  duracion: number
-  tipo: 'consulta' | 'seguimiento' | 'urgencia' | 'revision'
-  motivo: string
-  notas?: string
+  patient_id: string
+  doctor_id?: string
+  appointment_datetime: string
+  duration_minutes: number
+  reason_for_visit?: string
+  notes?: string
+  status?: string
 }
 
-/**
- * Pagination metadata for list responses
- * 
- * Used when returning paginated data from list endpoints
- * 
- * @requirement API-01
- */
+export interface UpdateAppointmentRequest {
+  doctor_id?: string
+  appointment_datetime?: string
+  duration_minutes?: number
+  status?: string
+  reason_for_visit?: string
+  notes?: string
+}
+
 export interface PaginationMeta {
   total: number
   limit: number
