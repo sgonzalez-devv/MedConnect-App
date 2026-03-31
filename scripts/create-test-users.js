@@ -140,14 +140,15 @@ async function createTestUsers(clinicId) {
     .from('clinics')
     .select('id')
     .eq('name', 'Medical City Clinic')
-    .single();
+    .order('created_at', { ascending: false })
+    .limit(1);
 
-  if (clinicError && clinicError.code !== 'PGRST116') {
+  if (clinicError) {
     console.error('❌ Error checking clinics:', clinicError.message);
     process.exit(1);
   }
 
-  if (!clinics) {
+  if (!clinics || clinics.length === 0) {
     console.error('❌ Test clinic not found!');
     console.error('   Run the following first:');
     console.error('   1. Execute .supabase/001-schema.sql in Supabase dashboard');
@@ -156,6 +157,7 @@ async function createTestUsers(clinicId) {
     process.exit(1);
   }
 
-  console.log(`✅ Found clinic: ${clinics.id}\n`);
-  await createTestUsers(clinics.id);
+  const clinicId = clinics[0].id;
+  console.log(`✅ Found clinic: ${clinicId}\n`);
+  await createTestUsers(clinicId);
 })();
