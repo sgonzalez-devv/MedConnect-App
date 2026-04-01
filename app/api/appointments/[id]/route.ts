@@ -7,38 +7,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
 import { handleSupabaseError, isAuthError, isClinicIsolationError } from '@/lib/error-handling'
+import { getClinicContext } from '@/lib/auth-context'
 import {
   getAppointmentById,
   updateAppointment as updateAppointmentService,
   deleteAppointment as deleteAppointmentService,
 } from '@/lib/api-service'
 import type { Appointment } from '@/lib/types'
-
-/**
- * Helper to extract user clinic context
- */
-async function getUserClinicContext(
-  request: NextRequest
-): Promise<{ clinic_id: string; user_role: string } | null> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return null
-  }
-
-  // Read clinic_id and user_role from JWT metadata (set during user creation)
-  const clinic_id = user.user_metadata?.clinic_id
-  const user_role = user.user_metadata?.user_role
-
-  if (!clinic_id || !user_role) {
-    return null
-  }
-
-  return { clinic_id, user_role }
-}
 
 /**
  * GET /api/appointments/[id]
@@ -51,9 +27,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const clinicContext = await getUserClinicContext(request)
+    const ctx = await getClinicContext()
 
-    if (!clinicContext) {
+    if (!ctx) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
@@ -71,7 +47,7 @@ export async function GET(
     }
 
     // Fetch appointment with clinic isolation
-    const appointment = await getAppointmentById(clinicContext.clinic_id, id)
+    const appointment = await getAppointmentById(ctx.clinic_id, id)
 
     return NextResponse.json(
       { data: appointment, status: 200 },
@@ -79,7 +55,6 @@ export async function GET(
     )
   } catch (error) {
     if (error instanceof Error) {
-      // Check for clinic isolation error
       if (isClinicIsolationError(error) || error.message.includes('not found')) {
         return NextResponse.json(
           { error: 'Appointment not found', code: 'NOT_FOUND' },
@@ -121,9 +96,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const clinicContext = await getUserClinicContext(request)
+    const ctx = await getClinicContext()
 
-    if (!clinicContext) {
+    if (!ctx) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
@@ -131,7 +106,7 @@ export async function PATCH(
     }
 
     // Check authorization: doctors, staff and admin can update
-    if (clinicContext.user_role === 'patient') {
+    if ((ctx.user_role as string) === 'patient') {
       return NextResponse.json(
         { error: 'Patients cannot update appointments', code: 'FORBIDDEN' },
         { status: 403 }
@@ -209,7 +184,7 @@ export async function PATCH(
     }
 
     // Update appointment using service layer
-    const appointment = await updateAppointmentService(clinicContext.clinic_id, id, body)
+    const appointment = await updateAppointmentService(ctx.clinic_id, id, body)
 
     return NextResponse.json(
       { data: appointment, status: 200 },
@@ -217,7 +192,6 @@ export async function PATCH(
     )
   } catch (error) {
     if (error instanceof Error) {
-      // Check for clinic isolation error
       if (isClinicIsolationError(error) || error.message.includes('not found')) {
         return NextResponse.json(
           { error: 'Appointment not found', code: 'NOT_FOUND' },
@@ -260,9 +234,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const clinicContext = await getUserClinicContext(request)
+    const ctx = await getClinicContext()
 
-    if (!clinicContext) {
+    if (!ctx) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
@@ -270,7 +244,7 @@ export async function DELETE(
     }
 
     // Check authorization: staff and admin can delete
-    if (clinicContext.user_role === 'patient') {
+    if ((ctx.user_role as string) === 'patient') {
       return NextResponse.json(
         {
           error: 'Patients cannot delete appointments',
@@ -292,7 +266,7 @@ export async function DELETE(
 
     // Verify appointment exists and belongs to clinic before deleting
     try {
-      await getAppointmentById(clinicContext.clinic_id, id)
+      await getAppointmentById(ctx.clinic_id, id)
     } catch {
       return NextResponse.json(
         { error: 'Appointment not found', code: 'NOT_FOUND' },
@@ -301,7 +275,7 @@ export async function DELETE(
     }
 
     // Delete appointment using service layer
-    await deleteAppointmentService(clinicContext.clinic_id, id)
+    await deleteAppointmentService(ctx.clinic_id, id)
 
     // Return 204 No Content on successful deletion
     return NextResponse.json(
@@ -310,7 +284,6 @@ export async function DELETE(
     )
   } catch (error) {
     if (error instanceof Error) {
-      // Check for clinic isolation error
       if (isClinicIsolationError(error) || error.message.includes('not found')) {
         return NextResponse.json(
           { error: 'Appointment not found', code: 'NOT_FOUND' },

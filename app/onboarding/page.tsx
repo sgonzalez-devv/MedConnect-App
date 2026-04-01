@@ -72,7 +72,7 @@ export default function OnboardingPage() {
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1)
     } else {
-      router.push("/auth/signup")
+      router.push("/auth/login")
     }
   }
 
@@ -83,7 +83,7 @@ export default function OnboardingPage() {
   }
 
   const handleSkip = () => {
-    router.push("/auth/signup")
+    router.push("/auth/login")
   }
 
   return (
@@ -273,7 +273,7 @@ export default function OnboardingPage() {
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-4">
-                    Tu consultorio está listo para comenzar. Inicia sesión para acceder al panel de control.
+                    Tu consultorio está listo para comenzar. Inicia sesión con tus credenciales de administrador para acceder al panel de control.
                   </p>
                   <div className="bg-muted p-4 rounded-lg text-left space-y-2">
                     <p className="text-sm">
@@ -322,7 +322,7 @@ export default function OnboardingPage() {
                 ))}
               </div>
               <Button onClick={handleNext} className="bg-teal-600 hover:bg-teal-700 text-white">
-                {currentStep === steps.length ? "Ir a Registro" : "Siguiente"}
+                {currentStep === steps.length ? "Ir al Login" : "Siguiente"}
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>

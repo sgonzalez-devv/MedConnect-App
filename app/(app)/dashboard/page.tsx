@@ -21,6 +21,10 @@ import {
   ArrowRight,
   AlertCircle,
   TrendingUp,
+  Building2,
+  ChevronRight,
+  Rocket,
+  X,
 } from "lucide-react"
 import {
   notifications,
@@ -48,10 +52,17 @@ export default function DashboardPage() {
   const [patientsCount, setPatientsCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isNewUser, setIsNewUser] = useState(false)
+  const [setupBannerDismissed, setSetupBannerDismissed] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
-      if (!user?.clinic_id) return
+      if (!user?.clinic_id) {
+        // No clinic assigned yet → new user
+        setIsNewUser(true)
+        setLoading(false)
+        return
+      }
 
       try {
         setLoading(true)
@@ -64,10 +75,16 @@ export default function DashboardPage() {
           apiClient.get(`/api/patients?limit=10000`),
         ])
 
-        setAppointments(appointmentsRes.data?.data || [])
-        setPatientsCount(
-          patientsRes.data?.total || patientsRes.data?.data?.length || 0
-        )
+        const fetchedAppointments = appointmentsRes.data?.data || []
+        const fetchedCount = patientsRes.data?.total || patientsRes.data?.data?.length || 0
+
+        setAppointments(fetchedAppointments)
+        setPatientsCount(fetchedCount)
+
+        // Show setup banner when there are no patients and no appointments
+        if (fetchedCount === 0 && fetchedAppointments.length === 0) {
+          setIsNewUser(true)
+        }
       } catch (err) {
         const message = formatErrorMessage(err, "Fetching dashboard data")
         setError(message)
@@ -133,6 +150,85 @@ export default function DashboardPage() {
   return (
     <TooltipProvider>
       <div className="p-4 md:p-6 space-y-6">
+
+        {/* ── New-user setup banner ───────────────────────────────────────── */}
+        {isNewUser && !setupBannerDismissed && (
+          <Card className="border-teal-200 bg-linear-to-r from-teal-50 via-white to-teal-50 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(20,184,166,0.08),transparent_60%)] pointer-events-none" />
+            <CardContent className="p-5">
+              <button
+                onClick={() => setSetupBannerDismissed(true)}
+                className="absolute top-3 right-3 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 rounded-xl bg-teal-600 flex items-center justify-center shrink-0">
+                  <Rocket className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg font-semibold text-foreground mb-0.5">
+                    ¡Bienvenido a MedConnect!
+                  </h2>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Tu cuenta está lista. Sigue estos pasos para configurar el sistema desde cero.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Step 1 – Clinic */}
+                    <Link
+                      href="/clinics/nueva"
+                      className="group flex items-center gap-3 p-3 rounded-xl border border-border bg-white hover:border-teal-300 hover:bg-teal-50 transition-all duration-200"
+                    >
+                      <div className="h-9 w-9 rounded-lg bg-teal-100 flex items-center justify-center shrink-0 group-hover:bg-teal-200 transition-colors">
+                        <Building2 className="h-4 w-4 text-teal-700" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground">1. Crear Clínica</p>
+                        <p className="text-xs text-muted-foreground truncate">Registra tu primera clínica</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-teal-600 transition-colors shrink-0" />
+                    </Link>
+
+                    {/* Step 2 – Patient */}
+                    <Link
+                      href="/pacientes/nuevo"
+                      className="group flex items-center gap-3 p-3 rounded-xl border border-border bg-white hover:border-blue-300 hover:bg-blue-50 transition-all duration-200"
+                    >
+                      <div className="h-9 w-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0 group-hover:bg-blue-200 transition-colors">
+                        <Users className="h-4 w-4 text-blue-700" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground">2. Agregar Paciente</p>
+                        <p className="text-xs text-muted-foreground truncate">Registra tu primer paciente</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-blue-600 transition-colors shrink-0" />
+                    </Link>
+
+                    {/* Step 3 – Appointment */}
+                    <Link
+                      href="/calendario/nueva-cita"
+                      className="group flex items-center gap-3 p-3 rounded-xl border border-border bg-white hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-200"
+                    >
+                      <div className="h-9 w-9 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 group-hover:bg-indigo-200 transition-colors">
+                        <Calendar className="h-4 w-4 text-indigo-700" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground">3. Crear Cita</p>
+                        <p className="text-xs text-muted-foreground truncate">Agenda tu primera cita</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-indigo-600 transition-colors shrink-0" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {/* ─────────────────────────────────────────────────────────────────── */}
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>

@@ -55,6 +55,14 @@ const mainNavItems = [
     description: "Vista general y resumen del día",
   },
   {
+    title: "Clínicas",
+    href: "/clinics",
+    icon: Building2,
+    color: "text-teal-600",
+    bgActive: "bg-teal-50",
+    description: "Gestiona tus clínicas",
+  },
+  {
     title: "Multi-Clínica",
     href: "/multi-clinic-dashboard",
     icon: Building2,

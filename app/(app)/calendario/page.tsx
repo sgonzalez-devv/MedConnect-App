@@ -25,8 +25,7 @@ import {
   Clock,
   MoreVertical,
   CalendarDays,
-  CalendarIcon,
-  Loader2,
+  User,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -34,6 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Skeleton } from "@/components/ui/skeleton"
 import { formatDateWithWeekday, formatDateShort } from "@/lib/date-utils"
 import { useAuth } from "@/hooks/use-auth"
 import { formatErrorMessage } from "@/lib/error-handling"
@@ -94,12 +94,19 @@ export default function CalendarPage() {
     }
   }, [user, fetchAppointments, fetchPatients])
 
-  // Join appointments with patient data
+  // Join appointments with patient data — keep all appointments even if patient not found yet
   const patientMap = new Map(patients.map(p => [p.id, p]))
   const allAppointments = appointments.map(apt => ({
     ...apt,
     patient: apt.patient_id ? patientMap.get(apt.patient_id) : undefined,
-  })).filter(apt => apt.patient) as (Appointment & { patient: Patient })[]
+    // Use the pre-computed fecha/hora from the API (UTC-consistent).
+    // If missing, fall back to parsing appointment_datetime in UTC to stay consistent
+    // with how the server computed them (simple T-split, no tz conversion).
+    fecha: apt.fecha
+      || (apt.appointment_datetime ? apt.appointment_datetime.split('T')[0] : ""),
+    hora: apt.hora
+      || (apt.appointment_datetime ? apt.appointment_datetime.substring(11, 16) : ""),
+  }))
 
   // Format date consistently
   const formatDateStr = (date: Date) => {
@@ -176,10 +183,58 @@ export default function CalendarPage() {
 
   if (isLoading) {
     return (
-      <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-4" />
-          <p className="text-muted-foreground">Cargando calendario...</p>
+      <div className="p-4 md:p-6 space-y-6 animate-in fade-in duration-300">
+        {/* Header skeleton */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-36" />
+            <Skeleton className="h-4 w-52" />
+          </div>
+          <Skeleton className="h-9 w-32" />
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          {/* Calendar mini-grid skeleton */}
+          <div className="xl:col-span-1 rounded-xl border border-border p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-6 rounded-full" />
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-6 w-6 rounded-full" />
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: 42 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 w-full rounded-lg" />
+              ))}
+            </div>
+            <Skeleton className="h-9 w-full" />
+          </div>
+
+          {/* Appointments skeleton */}
+          <div className="xl:col-span-3 rounded-xl border border-border p-4 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <Skeleton className="h-5 w-48" />
+              </div>
+              <Skeleton className="h-9 w-28" />
+            </div>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 rounded-lg border border-border p-4"
+              >
+                <div className="w-1.5 self-stretch rounded-full bg-teal-100" />
+                <Skeleton className="h-10 w-16 shrink-0" />
+                <div className="hidden md:block w-px h-10 bg-border" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-60" />
+                </div>
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )
@@ -257,7 +312,7 @@ export default function CalendarPage() {
                         <button
                           onClick={() => setSelectedDate(date)}
                           className={`
-                            relative p-2 text-sm rounded-lg transition-all duration-200 font-medium
+                            relative flex flex-col items-center justify-center gap-0.5 p-2 text-sm rounded-lg transition-all duration-200 font-medium min-h-9
                             ${!isCurrentMonth ? "text-muted-foreground/40" : "text-foreground"}
                             ${isSelected 
                               ? "bg-teal-600 text-white shadow-md" 
@@ -266,11 +321,14 @@ export default function CalendarPage() {
                                 : "hover:bg-teal-50"}
                           `}
                         >
-                          {date.getDate()}
-                          {hasAppointments && !isSelected && (
-                            <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
-                            </span>
+                          <span>{date.getDate()}</span>
+                          {hasAppointments ? (
+                            <span
+                              className={`block w-1.5 h-1.5 rounded-full transition-colors duration-200
+                                ${isSelected ? "bg-white/80" : "bg-teal-500"}`}
+                            />
+                          ) : (
+                            <span className="block w-1.5 h-1.5" />
                           )}
                         </button>
                       </TooltipTrigger>
@@ -350,7 +408,7 @@ export default function CalendarPage() {
             </CardHeader>
             <CardContent>
               {sortedAppointments.length === 0 ? (
-                <div className="text-center py-16">
+                <div className="text-center py-16 animate-in fade-in duration-200">
                   <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
                     <Clock className="w-10 h-10 text-muted-foreground" />
                   </div>
@@ -358,17 +416,38 @@ export default function CalendarPage() {
                     Sin citas programadas
                   </p>
                   <p className="text-muted-foreground mb-6">
-                    No hay citas para esta fecha. Puedes crear una nueva cita.
+                    No hay citas para esta fecha.
                   </p>
-                  <Button className="btn-secondary" asChild>
-                    <Link href="/calendario/nueva-cita">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Agendar Cita
-                    </Link>
-                  </Button>
+                  {/* Hint to next appointment date */}
+                  {(() => {
+                    const nextDate = allAppointments
+                      .map(a => a.fecha)
+                      .filter(f => f > selectedDateStr)
+                      .sort()[0]
+                    if (!nextDate) return null
+                    const [y, m, d] = nextDate.split("-").map(Number)
+                    const next = new Date(y, m - 1, d)
+                    return (
+                      <button
+                        onClick={() => setSelectedDate(next)}
+                        className="inline-flex items-center gap-2 text-sm text-teal-600 font-medium hover:text-teal-700 hover:underline transition-colors mb-6"
+                      >
+                        <CalendarDays className="w-4 h-4" />
+                        Próxima cita: {formatDateShort(next)}
+                      </button>
+                    )
+                  })()}
+                  <div className="flex justify-center">
+                    <Button className="btn-secondary" asChild>
+                      <Link href="/calendario/nueva-cita">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Agendar Cita
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 animate-in fade-in duration-200">
                   {sortedAppointments.map((appointment) => (
                     <AppointmentCard
                       key={appointment.id}
@@ -391,7 +470,7 @@ function AppointmentCard({
   patient,
 }: {
   appointment: Appointment
-  patient: Patient
+  patient?: Patient
 }) {
   const estado = estadoConfig[appointment.status] || estadoConfig.scheduled
 
@@ -399,7 +478,7 @@ function AppointmentCard({
     <TooltipProvider>
       <Link
         href={`/calendario/cita/${appointment.id}`}
-        className="flex items-stretch rounded-lg border border-border overflow-hidden hover:shadow-lg hover:border-teal-200 transition-all duration-200 group"
+        className="flex items-stretch rounded-lg border border-border overflow-hidden hover:shadow-lg hover:border-teal-200 transition-all duration-200 group animate-in fade-in slide-in-from-bottom-1"
       >
         {/* Left accent bar */}
         <div className="w-1.5 bg-teal-500 group-hover:w-2 transition-all duration-200" />
@@ -421,9 +500,16 @@ function AppointmentCard({
 
           {/* Patient Info */}
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-foreground truncate group-hover:text-teal-700 transition-colors duration-200">
-              {patient.full_name}
-            </p>
+            {patient ? (
+              <p className="font-medium text-foreground truncate group-hover:text-teal-700 transition-colors duration-200">
+                {patient.full_name}
+              </p>
+            ) : (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <User className="w-3.5 h-3.5 shrink-0" />
+                <p className="font-medium text-sm truncate">Paciente desconocido</p>
+              </div>
+            )}
             <p className="text-sm text-muted-foreground truncate">
               {appointment.reason_for_visit}
             </p>
@@ -460,7 +546,7 @@ function AppointmentCard({
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="cursor-pointer">
-                <Link href={`/pacientes/${patient.id}`}>
+                <Link href={`/pacientes/${patient?.id ?? ""}`}>
                   Ver paciente
                 </Link>
               </DropdownMenuItem>

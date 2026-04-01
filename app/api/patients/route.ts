@@ -6,8 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
 import { handleSupabaseError, isAuthError } from '@/lib/error-handling'
+import { getClinicContext } from '@/lib/auth-context'
 import { getPatients, createPatient as createPatientQuery } from '@/lib/api-service'
 import type { Patient } from '@/lib/types'
 
@@ -23,26 +23,13 @@ import type { Patient } from '@/lib/types'
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get authenticated user from Supabase
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get authenticated user's clinic context (reads user_metadata / app_metadata)
+    const ctx = await getClinicContext()
 
-    // Check authentication
-    if (authError || !user) {
+    if (!ctx) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
-      )
-    }
-
-    // Read clinic_id and user_role from JWT metadata (set during user creation)
-    const clinic_id = user.user_metadata?.clinic_id
-    const user_role = user.user_metadata?.user_role
-
-    if (!clinic_id || !user_role) {
-      return NextResponse.json(
-        { error: 'User profile incomplete', code: 'USER_NOT_FOUND' },
-        { status: 404 }
       )
     }
 
@@ -60,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch patients using service layer (clinic-aware)
-    const patients = await getPatients(clinic_id, { limit, offset })
+    const patients = await getPatients(ctx.clinic_id, { limit, offset })
 
     return NextResponse.json(
       { data: patients, status: 200 },
@@ -107,31 +94,18 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get authenticated user from Supabase
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get authenticated user's clinic context (reads user_metadata / app_metadata)
+    const ctx = await getClinicContext()
 
-    // Check authentication
-    if (authError || !user) {
+    if (!ctx) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
       )
     }
 
-    // Read clinic_id and user_role from JWT metadata (set during user creation)
-    const clinic_id = user.user_metadata?.clinic_id
-    const user_role = user.user_metadata?.user_role
-
-    if (!clinic_id || !user_role) {
-      return NextResponse.json(
-        { error: 'User profile incomplete', code: 'USER_NOT_FOUND' },
-        { status: 404 }
-      )
-    }
-
     // Check authorization: only staff and admin can create patients
-    if (user_role === 'doctor') {
+    if (ctx.user_role === 'doctor') {
       return NextResponse.json(
         { error: 'Doctors cannot create patients', code: 'FORBIDDEN' },
         { status: 403 }
@@ -194,7 +168,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create patient using service layer
-    const patient = await createPatientQuery(clinic_id, patientData)
+    const patient = await createPatientQuery(ctx.clinic_id, patientData)
 
     return NextResponse.json(
       { data: patient, status: 201 },

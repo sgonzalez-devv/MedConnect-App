@@ -7,38 +7,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
 import { handleSupabaseError, isAuthError, isClinicIsolationError } from '@/lib/error-handling'
+import { getClinicContext } from '@/lib/auth-context'
 import {
   getPatientById,
   updatePatient as updatePatientService,
   deletePatient as deletePatientService,
 } from '@/lib/api-service'
 import type { Patient } from '@/lib/types'
-
-/**
- * Helper to extract user clinic context
- */
-async function getUserClinicContext(
-  request: NextRequest
-): Promise<{ clinic_id: string; user_role: string } | null> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return null
-  }
-
-  // Read clinic_id and user_role from JWT metadata (set during user creation)
-  const clinic_id = user.user_metadata?.clinic_id
-  const user_role = user.user_metadata?.user_role
-
-  if (!clinic_id || !user_role) {
-    return null
-  }
-
-  return { clinic_id, user_role }
-}
 
 /**
  * GET /api/patients/[id]
@@ -51,9 +27,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const clinicContext = await getUserClinicContext(request)
+    const ctx = await getClinicContext()
 
-    if (!clinicContext) {
+    if (!ctx) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
@@ -71,7 +47,7 @@ export async function GET(
     }
 
     // Fetch patient with clinic isolation
-    const patient = await getPatientById(clinicContext.clinic_id, id)
+    const patient = await getPatientById(ctx.clinic_id, id)
 
     return NextResponse.json(
       { data: patient, status: 200 },
@@ -121,9 +97,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const clinicContext = await getUserClinicContext(request)
+    const ctx = await getClinicContext()
 
-    if (!clinicContext) {
+    if (!ctx) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
@@ -131,7 +107,7 @@ export async function PATCH(
     }
 
     // Check authorization: only staff and admin can update
-    if (clinicContext.user_role === 'doctor') {
+    if (ctx.user_role === 'doctor') {
       return NextResponse.json(
         { error: 'Doctors cannot update patients', code: 'FORBIDDEN' },
         { status: 403 }
@@ -190,7 +166,7 @@ export async function PATCH(
     }
 
     // Update patient using service layer
-    const patient = await updatePatientService(clinicContext.clinic_id, id, body)
+    const patient = await updatePatientService(ctx.clinic_id, id, body)
 
     return NextResponse.json(
       { data: patient, status: 200 },
@@ -241,9 +217,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const clinicContext = await getUserClinicContext(request)
+    const ctx = await getClinicContext()
 
-    if (!clinicContext) {
+    if (!ctx) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
@@ -251,7 +227,7 @@ export async function DELETE(
     }
 
     // Check authorization: only admin can delete
-    if (clinicContext.user_role !== 'admin') {
+    if (ctx.user_role !== 'admin') {
       return NextResponse.json(
         {
           error: 'Only administrators can delete patients',
@@ -273,7 +249,7 @@ export async function DELETE(
 
     // Verify patient exists and belongs to clinic before deleting
     try {
-      await getPatientById(clinicContext.clinic_id, id)
+      await getPatientById(ctx.clinic_id, id)
     } catch {
       return NextResponse.json(
         { error: 'Patient not found', code: 'NOT_FOUND' },
@@ -282,7 +258,7 @@ export async function DELETE(
     }
 
     // Delete patient using service layer
-    await deletePatientService(clinicContext.clinic_id, id)
+    await deletePatientService(ctx.clinic_id, id)
 
     // Return 204 No Content on successful deletion
     return NextResponse.json(

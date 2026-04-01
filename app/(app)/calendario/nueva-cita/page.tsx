@@ -298,23 +298,20 @@ export default function NewAppointmentPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Bot className="w-8 h-8 text-teal-600" />
+              <div className="text-center py-16">
+                <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                  <Bot className="w-10 h-10 text-amber-500" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Bot de WhatsApp Activo
+                <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  En Construcción
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-2">
+                  Próximamente disponible
                 </h3>
-                <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                  Los pacientes pueden enviar un mensaje al número de WhatsApp del consultorio
-                  para agendar citas automáticamente. El bot les guiará en el proceso.
+                <p className="text-muted-foreground max-w-sm mx-auto text-sm leading-relaxed">
+                  La función de citas asistidas por bot de WhatsApp está en desarrollo y estará disponible muy pronto.
                 </p>
-                <div className="bg-muted p-4 rounded-lg inline-block">
-                  <p className="text-sm text-muted-foreground mb-1">Número de WhatsApp</p>
-                  <p className="text-lg font-mono font-medium text-foreground">
-                    +1 809 555 1234
-                  </p>
-                </div>
               </div>
             </CardContent>
           </Card>

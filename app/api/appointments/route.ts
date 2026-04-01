@@ -6,56 +6,19 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
 import { handleSupabaseError, isAuthError } from '@/lib/error-handling'
+import { getClinicContext } from '@/lib/auth-context'
 import {
   getAppointments,
   createAppointment as createAppointmentService,
 } from '@/lib/api-service'
 import type { Appointment } from '@/lib/types'
 
-/**
- * Helper to extract user clinic context
- */
-async function getUserClinicContext(
-  request: NextRequest
-): Promise<{ clinic_id: string; user_role: string } | null> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return null
-  }
-
-  // Read clinic_id and user_role from JWT metadata (set during user creation)
-  const clinic_id = user.user_metadata?.clinic_id
-  const user_role = user.user_metadata?.user_role
-
-  if (!clinic_id || !user_role) {
-    return null
-  }
-
-  return { clinic_id, user_role }
-}
-
-/**
- * GET /api/appointments
- * Fetch appointments for current clinic
- * 
- * Query params:
- * - limit: number (default 50)
- * - offset: number (default 0)
- * - patientId: string (optional, filter by patient)
- * - fromDate: ISO string (optional, filter by start date)
- * - toDate: ISO string (optional, filter by end date)
- * 
- * @requirement API-03
- */
 export async function GET(request: NextRequest) {
   try {
-    const clinicContext = await getUserClinicContext(request)
+    const ctx = await getClinicContext()
 
-    if (!clinicContext) {
+    if (!ctx) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
@@ -94,9 +57,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch appointments using service layer
-    // Note: Service layer handles basic filtering; additional date filtering
-    // can be done in post-processing or extended in api-service layer
-    const appointments = await getAppointments(clinicContext.clinic_id, patientId)
+    const appointments = await getAppointments(ctx.clinic_id, patientId)
 
     // Apply date filtering in-memory if dates provided
     let filtered = appointments
@@ -156,9 +117,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const clinicContext = await getUserClinicContext(request)
+    const ctx = await getClinicContext()
 
-    if (!clinicContext) {
+    if (!ctx) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
         { status: 401 }
@@ -166,7 +127,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check authorization: staff and doctors can create, admin too
-    if (clinicContext.user_role === 'patient') {
+    if ((ctx.user_role as string) === 'patient') {
       return NextResponse.json(
         { error: 'Patients cannot create appointments directly', code: 'FORBIDDEN' },
         { status: 403 }
@@ -230,10 +191,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create appointment using service layer
-    const appointment = await createAppointmentService(
-      clinicContext.clinic_id,
-      appointmentData
-    )
+    const appointment = await createAppointmentService(ctx.clinic_id, appointmentData)
 
     return NextResponse.json(
       { data: appointment, status: 201 },

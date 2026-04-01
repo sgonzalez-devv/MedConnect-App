@@ -9,6 +9,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { Separator } from "@/components/ui/separator"
 import { ClinicProvider } from "@/context/clinic-context"
 import { Toaster } from "@/components/ui/sonner"
+import { PageTransition } from "@/components/page-transition"
 
 export default function AppLayout({
   children,
@@ -25,10 +26,34 @@ export default function AppLayout({
     }
   }, [loading, user, router])
 
+  // Fire navigation-start event on every internal link click so the
+  // PageTransition progress bar starts immediately (before the route resolves)
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest("a")
+      if (!anchor) return
+      const href = anchor.getAttribute("href")
+      if (!href || href.startsWith("http") || href.startsWith("#") || anchor.target === "_blank") return
+      window.dispatchEvent(new Event("navigation-start"))
+    }
+    document.addEventListener("click", handleClick, true)
+    return () => document.removeEventListener("click", handleClick, true)
+  }, [])
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className="flex flex-col items-center justify-center h-screen gap-4 bg-background">
+        {/* Animated logo / pulse ring */}
+        <div className="relative flex items-center justify-center w-16 h-16">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-30 animate-ping" />
+          <span className="relative inline-flex rounded-full h-10 w-10 bg-teal-500 items-center justify-center">
+            <svg className="w-5 h-5 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground animate-pulse">Cargando aplicación…</p>
       </div>
     )
   }
@@ -71,7 +96,9 @@ export default function AppLayout({
             )}
           </header>
           <main className="flex-1 overflow-auto">
-            {children}
+            <PageTransition>
+              {children}
+            </PageTransition>
           </main>
         </SidebarInset>
       </SidebarProvider>
