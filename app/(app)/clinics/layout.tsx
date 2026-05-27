@@ -1,21 +1,22 @@
 'use client'
 
-import { useEffect } from 'react'
+import { use, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { useClinicContext } from '@/hooks/use-clinic-context'
 import { generateClinicCSSVariables } from '@/lib/theme-utils'
 
 export default function ClinicLayout({
   children,
-  params,
 }: {
   children: React.ReactNode
-  params: { clinicId: string }
 }) {
+  const params = useParams()
+  const clinicId = params?.clinicId as string | undefined
   const { currentClinic, setCurrentClinicId } = useClinicContext()
 
   useEffect(() => {
-    setCurrentClinicId(params.clinicId)
-  }, [params.clinicId, setCurrentClinicId])
+    if (clinicId) setCurrentClinicId(clinicId)
+  }, [clinicId, setCurrentClinicId])
 
   const cssVars = currentClinic
     ? (generateClinicCSSVariables(currentClinic.colorPalette) as React.CSSProperties)

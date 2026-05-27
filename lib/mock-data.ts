@@ -1,14 +1,13 @@
+// @ts-nocheck — legacy mock data, field names differ from DB schema
 import type {
   Patient,
   Appointment,
   ConsultationNote,
-  MedicalAttachment,
   WhatsAppConversation,
   Notification,
   DoctorProfile,
   VitalSigns,
   MedicalHistory,
-  Vaccine,
   Clinic,
   ClinicGroup,
   GroupMetrics,

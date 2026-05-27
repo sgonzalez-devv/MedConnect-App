@@ -1,10 +1,11 @@
 // Authentication types
 export interface AuthUser {
-  id: string // UUID from Supabase Auth
+  id: string
   email: string
-  clinic_id: string // From JWT custom claims
+  clinic_id?: string
   user_role: 'admin' | 'doctor' | 'staff'
   full_name?: string
+  profession?: string
 }
 
 export interface AuthSession {

@@ -25,6 +25,10 @@ export async function getClinicContext(user: AuthUser | null): Promise<{
     throw new Error('User not authenticated');
   }
 
+  if (!user.clinic_id) {
+    throw new Error('User has no clinic assigned');
+  }
+
   return {
     clinic_id: user.clinic_id,
     user_role: user.user_role,

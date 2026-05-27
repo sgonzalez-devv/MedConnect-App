@@ -21,6 +21,7 @@ export function useAuth() {
           clinic_id: session.user.user_metadata?.clinic_id,
           user_role: session.user.user_metadata?.user_role,
           full_name: session.user.user_metadata?.full_name,
+          profession: session.user.user_metadata?.profession,
         }
         setUser(user)
         setSession({

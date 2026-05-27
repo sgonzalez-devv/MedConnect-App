@@ -33,7 +33,7 @@ export default function MultiClinicDashboard() {
       clinic,
       patientCount: patients.length,
       todayCount: todayAppointments.length,
-      confirmedCount: todayAppointments.filter((a) => a.estado === "confirmada").length,
+      confirmedCount: todayAppointments.filter((a) => (a as any).status === "confirmed" || (a as any).estado === "confirmada").length,
       colors,
     }
   })

@@ -19,25 +19,37 @@ interface AppointmentCardProps {
 }
 
 const statusConfig: Record<string, { label: string; class: string }> = {
+  scheduled: { label: "Programada", class: "bg-blue-50 text-blue-700 border-blue-200" },
+  confirmed: { label: "Confirmada", class: "bg-green-50 text-green-700 border-green-200" },
+  in_progress: { label: "En curso", class: "bg-amber-50 text-amber-700 border-amber-200" },
+  completed: { label: "Completada", class: "bg-gray-100 text-gray-700 border-gray-200" },
+  cancelled: { label: "Cancelada", class: "bg-red-50 text-red-700 border-red-200" },
+  no_show: { label: "No asistió", class: "bg-orange-50 text-orange-700 border-orange-200" },
+  // legacy keys kept for backwards compat with mock data
   programada: { label: "Programada", class: "bg-blue-50 text-blue-700 border-blue-200" },
   confirmada: { label: "Confirmada", class: "bg-green-50 text-green-700 border-green-200" },
-  en_curso: { label: "En curso", class: "bg-amber-50 text-amber-700 border-amber-200" },
   completada: { label: "Completada", class: "bg-gray-100 text-gray-700 border-gray-200" },
   cancelada: { label: "Cancelada", class: "bg-red-50 text-red-700 border-red-200" },
-  no_asistio: { label: "No asistió", class: "bg-orange-50 text-orange-700 border-orange-200" }
 }
 
-const typeConfig: Record<string, { label: string; class: string }> = {
-  consulta: { label: "Consulta", class: "bg-indigo-50 text-indigo-700" },
-  seguimiento: { label: "Seguimiento", class: "bg-teal-50 text-teal-700" },
-  urgencia: { label: "Urgencia", class: "bg-red-50 text-red-700" },
-  revision: { label: "Revisión", class: "bg-amber-50 text-amber-700" }
+function getTimeFromDatetime(datetime: string): string {
+  if (!datetime) return ""
+  const d = new Date(datetime)
+  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`
+}
+
+function getInitials(fullName: string | null | undefined): string {
+  if (!fullName) return "??"
+  const parts = fullName.trim().split(" ")
+  return parts.length >= 2
+    ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+    : (parts[0][0] || "?").toUpperCase()
 }
 
 export function AppointmentCard({ appointment, patient, compact = false }: AppointmentCardProps) {
-  const status = statusConfig[appointment.estado] || statusConfig.programada
-  const type = typeConfig[appointment.tipo] || typeConfig.consulta
-  const initials = `${patient.nombre[0]}${patient.apellido[0]}`
+  const status = statusConfig[appointment.status] || statusConfig.scheduled
+  const displayTime = appointment.hora || getTimeFromDatetime(appointment.appointment_datetime)
+  const initials = getInitials(patient.full_name)
 
   if (compact) {
     return (
@@ -45,7 +57,7 @@ export function AppointmentCard({ appointment, patient, compact = false }: Appoi
         <div className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer">
           <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[60px]">
             <Clock className="h-4 w-4" />
-            {appointment.hora}
+            {displayTime}
           </div>
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-teal-100 text-teal-700 text-xs font-medium">
@@ -54,11 +66,11 @@ export function AppointmentCard({ appointment, patient, compact = false }: Appoi
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground truncate">
-              {patient.nombre} {patient.apellido}
+              {patient.full_name}
             </p>
           </div>
-          <Badge variant="outline" className={type.class}>
-            {type.label}
+          <Badge variant="outline" className={status.class}>
+            {status.label}
           </Badge>
         </div>
       </Link>
@@ -76,29 +88,26 @@ export function AppointmentCard({ appointment, patient, compact = false }: Appoi
               </AvatarFallback>
             </Avatar>
             <div>
-              <Link 
+              <Link
                 href={`/pacientes/${patient.id}`}
                 className="text-sm font-medium text-foreground hover:text-teal-600 transition-colors"
               >
-                {patient.nombre} {patient.apellido}
+                {patient.full_name}
               </Link>
               <div className="flex items-center gap-2 mt-1">
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Clock className="h-3.5 w-3.5" />
-                  {appointment.hora} ({appointment.duracion} min)
+                  {displayTime} ({appointment.duration_minutes} min)
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className={type.class}>
-                  {type.label}
-                </Badge>
                 <Badge variant="outline" className={status.class}>
                   {status.label}
                 </Badge>
               </div>
-              {appointment.notas && (
+              {appointment.notes && (
                 <p className="text-sm text-muted-foreground mt-2 line-clamp-1">
-                  {appointment.notas}
+                  {appointment.notes}
                 </p>
               )}
             </div>
