@@ -67,7 +67,7 @@ export default function ClinicListPage() {
                   <div
                     className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0"
                     style={{
-                      backgroundColor: clinic.colorPalette.customSecondaryHex || "oklch(0.70 0.19 163)",
+                      backgroundColor: clinic.colorPalette?.customSecondaryHex || "oklch(0.70 0.19 163)",
                     }}
                   >
                     <Building2 className="h-5 w-5 text-white" />

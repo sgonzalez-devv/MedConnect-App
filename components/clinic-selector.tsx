@@ -55,7 +55,7 @@ export function ClinicSelector() {
 
   if (!currentClinic) return null
 
-  const colorPreset = clinicColorMap[currentClinic.colorPalette.presetName] || clinicColorMap['teal']
+  const colorPreset = clinicColorMap[currentClinic.colorPalette?.presetName ?? 'teal'] || clinicColorMap['teal']
   const clinicInitials = currentClinic.name
     .split(' ')
     .map(word => word[0])

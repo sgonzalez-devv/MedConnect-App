@@ -22,18 +22,22 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { getClinicColors } from "@/lib/theme-utils"
 import { useAuth } from "@/hooks/use-auth"
+import { useClinicContext } from "@/hooks/use-clinic-context"
 import { formatErrorMessage } from "@/lib/error-handling"
 import { apiClient } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
+import { ClinicConfirmDialog } from "@/components/clinic-confirm-dialog"
 
 export default function ClinicNewPatientPage() {
   const router = useRouter()
   const params = useParams()
   const clinicId = params.clinicId as string
   const { user } = useAuth()
+  const { clinics, currentClinicId } = useClinicContext()
   const clinicColors = getClinicColors("teal")
 
   const [isLoading, setIsLoading] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [birthDate, setBirthDate] = useState<Date | undefined>()
   const [newAlergia, setNewAlergia] = useState("")
   const [newCondicion, setNewCondicion] = useState("")
@@ -71,35 +75,31 @@ export default function ClinicNewPatientPage() {
     setFormData({ ...formData, condicionesCronicas: formData.condicionesCronicas.filter((c) => c !== condicion) })
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!user) {
-      toast({ title: 'Debes iniciar sesión para registrar un paciente' })
-      return
-    }
-
+  const validate = () => {
+    if (!user) { toast({ title: 'Debes iniciar sesión' }); return false }
     if (!formData.nombre || !formData.apellido || !formData.email || !formData.telefono || !formData.genero || !birthDate) {
-      toast({ title: 'Por favor completa todos los campos requeridos' })
-      return
+      toast({ title: 'Por favor completa todos los campos requeridos' }); return false
     }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.email)) {
-      toast({ title: 'El formato del correo electrónico no es válido' })
-      return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast({ title: 'El formato del correo electrónico no es válido' }); return false
     }
-
     if (birthDate > new Date()) {
-      toast({ title: 'La fecha de nacimiento debe ser en el pasado' })
-      return
+      toast({ title: 'La fecha de nacimiento debe ser en el pasado' }); return false
     }
+    return true
+  }
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!validate()) return
+    setConfirmOpen(true)
+  }
+
+  const handleConfirm = async (targetClinicId: string) => {
+    setConfirmOpen(false)
     setIsLoading(true)
-
     try {
-      const dateOfBirth = `${birthDate.getFullYear()}-${(birthDate.getMonth() + 1).toString().padStart(2, "0")}-${birthDate.getDate().toString().padStart(2, "0")}`
-
+      const dateOfBirth = `${birthDate!.getFullYear()}-${(birthDate!.getMonth() + 1).toString().padStart(2, "0")}-${birthDate!.getDate().toString().padStart(2, "0")}`
       await apiClient.post('/api/patients', {
         full_name: `${formData.nombre} ${formData.apellido}`.trim(),
         email: formData.email,
@@ -112,11 +112,10 @@ export default function ClinicNewPatientPage() {
           formData.condicionesCronicas.length > 0 ? `Condiciones crónicas: ${formData.condicionesCronicas.join(", ")}` : null,
           formData.grupoSanguineo ? `Grupo sanguíneo: ${formData.grupoSanguineo}` : null,
         ].filter(Boolean).join("\n") || undefined,
-        clinic_id: clinicId,
+        clinic_id: targetClinicId,
       })
-
       toast({ title: 'Paciente registrado exitosamente' })
-      router.push(`/clinics/${clinicId}/pacientes`)
+      router.push(`/clinics/${targetClinicId}/pacientes`)
     } catch (error) {
       toast({ title: formatErrorMessage(error, 'Creating patient') })
     } finally {
@@ -379,6 +378,15 @@ export default function ClinicNewPatientPage() {
           </form>
         </CardContent>
       </Card>
+
+      <ClinicConfirmDialog
+        open={confirmOpen}
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmOpen(false)}
+        action="paciente"
+        clinics={clinics}
+        defaultClinicId={currentClinicId}
+      />
     </div>
   )
 }

@@ -22,9 +22,11 @@ import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getClinicColors } from "@/lib/theme-utils"
 import { useAuth } from "@/hooks/use-auth"
+import { useClinicContext } from "@/hooks/use-clinic-context"
 import { formatErrorMessage } from "@/lib/error-handling"
 import { apiClient } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
+import { ClinicConfirmDialog } from "@/components/clinic-confirm-dialog"
 import type { Patient } from "@/lib/types"
 
 const timeSlots = [
@@ -40,11 +42,13 @@ export default function ClinicNewAppointmentPage() {
   const clinicId = params.clinicId as string
   const preSelectedPatientId = searchParams.get("paciente") || ""
   const { user } = useAuth()
+  const { clinics, currentClinicId } = useClinicContext()
   const clinicColors = getClinicColors("teal")
 
   const [mode, setMode] = useState<"manual" | "bot">("manual")
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [isLoading, setIsLoading] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [patients, setPatients] = useState<Patient[]>([])
   const [formData, setFormData] = useState({
     pacienteId: preSelectedPatientId,
@@ -71,45 +75,37 @@ export default function ClinicNewAppointmentPage() {
     }
   }, [user, fetchPatients])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!user) {
-      toast({ title: 'Debes iniciar sesión para crear una cita' })
-      return
-    }
-
+  const validate = () => {
+    if (!user) { toast({ title: 'Debes iniciar sesión' }); return false }
     if (!formData.pacienteId || !formData.hora || !formData.motivo || !date) {
-      toast({ title: 'Por favor completa todos los campos requeridos' })
-      return
+      toast({ title: 'Por favor completa todos los campos requeridos' }); return false
     }
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    if (date < today) { toast({ title: 'La fecha de la cita debe ser en el futuro' }); return false }
+    return true
+  }
 
-    // Validate date is in the future
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    if (date < today) {
-      toast({ title: 'La fecha de la cita debe ser en el futuro' })
-      return
-    }
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!validate()) return
+    setConfirmOpen(true)
+  }
 
+  const handleConfirm = async (targetClinicId: string) => {
+    setConfirmOpen(false)
     setIsLoading(true)
-
     try {
-      const fechaStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`
-
+      const fechaStr = `${date!.getFullYear()}-${(date!.getMonth() + 1).toString().padStart(2, "0")}-${date!.getDate().toString().padStart(2, "0")}`
       await apiClient.post('/api/appointments', {
-        pacienteId: formData.pacienteId,
-        fecha: fechaStr,
-        hora: formData.hora,
-        duracion: parseInt(formData.duracion),
-        tipo: formData.tipo,
-        motivo: formData.motivo,
-        notas: formData.notas || undefined,
-        clinic_id: clinicId,
+        patient_id: formData.pacienteId,
+        appointment_datetime: `${fechaStr}T${formData.hora}`,
+        duration_minutes: parseInt(formData.duracion),
+        reason_for_visit: formData.motivo,
+        notes: formData.notas || undefined,
+        clinic_id: targetClinicId,
       })
-
       toast({ title: 'Cita creada exitosamente' })
-      router.push(`/clinics/${clinicId}/calendario`)
+      router.push(`/clinics/${targetClinicId}/calendario`)
     } catch (error) {
       toast({ title: formatErrorMessage(error, 'Creating appointment') })
     } finally {
@@ -347,6 +343,15 @@ export default function ClinicNewAppointmentPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ClinicConfirmDialog
+        open={confirmOpen}
+        onConfirm={handleConfirm}
+        onCancel={() => setConfirmOpen(false)}
+        action="cita"
+        clinics={clinics}
+        defaultClinicId={currentClinicId}
+      />
     </div>
   )
 }

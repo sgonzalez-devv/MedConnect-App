@@ -1,23 +1,29 @@
 'use client'
 
-import { createContext, useContext, useState, useMemo, ReactNode } from 'react'
-import type { Clinic } from '@/lib/types'
-import { clinics as mockClinics } from '@/lib/mock-data'
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react'
+
+export interface UserClinic {
+  id: string
+  name: string
+  location?: string
+  email?: string
+  telefono?: string
+  colorPalette?: {
+    presetName: string
+    customSecondaryHex?: string
+  }
+}
 
 type ClinicContextProps = {
+  clinics: UserClinic[]
   currentClinicId: string | null
-  currentClinic: Clinic | null
-  clinics: Clinic[]
+  currentClinic: UserClinic | null
   setCurrentClinicId: (id: string) => void
+  loading: boolean
 }
 
 const ClinicContext = createContext<ClinicContextProps | null>(null)
 
-/**
- * Hook to access clinic context
- * Must be used within ClinicProvider
- * Throws error if context is not available
- */
 export function useClinicContext() {
   const context = useContext(ClinicContext)
   if (!context) {
@@ -26,35 +32,47 @@ export function useClinicContext() {
   return context
 }
 
-/**
- * ClinicProvider component
- * Manages current clinic selection and provides clinic data to the app
- * Wraps the app with clinic context
- * 
- * IMPORTANT: Uses useMemo to prevent unnecessary re-renders on context change
- * (See RESEARCH.md Pitfall 1: Clinic Context Changes Trigger Full Re-render)
- */
 export function ClinicProvider({ children }: { children: ReactNode }) {
-  const [currentClinicId, setCurrentClinicId] = useState<string>('clinic-001')
+  const [clinics, setClinics] = useState<UserClinic[]>([])
+  const [currentClinicId, setCurrentClinicId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // Compute current clinic from clinics array
-  const currentClinic = mockClinics.find((c) => c.id === currentClinicId) || null
+  useEffect(() => {
+    async function fetchClinics() {
+      try {
+        const res = await fetch('/api/clinics')
+        if (!res.ok) return
+        const json = await res.json()
+        const data: UserClinic[] = (json.data || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          location: c.location,
+          email: c.email,
+          telefono: c.telefono,
+          colorPalette: c.color_palette ?? c.colorPalette ?? { presetName: 'teal' },
+        }))
+        setClinics(data)
+        if (data.length > 0 && !currentClinicId) {
+          setCurrentClinicId(data[0].id)
+        }
+      } catch {
+        // silently fail — pages handle their own auth errors
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchClinics()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Memoize context value to prevent unnecessary re-renders
-  // Only re-compute when currentClinicId changes
+  const currentClinic = useMemo(
+    () => clinics.find((c) => c.id === currentClinicId) ?? null,
+    [clinics, currentClinicId]
+  )
+
   const value = useMemo(
-    () => ({
-      currentClinicId,
-      currentClinic,
-      clinics: mockClinics,
-      setCurrentClinicId,
-    }),
-    [currentClinicId]
+    () => ({ clinics, currentClinicId, currentClinic, setCurrentClinicId, loading }),
+    [clinics, currentClinicId, currentClinic, loading]
   )
 
-  return (
-    <ClinicContext.Provider value={value}>
-      {children}
-    </ClinicContext.Provider>
-  )
+  return <ClinicContext.Provider value={value}>{children}</ClinicContext.Provider>
 }
