@@ -1,88 +1,169 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
 import { getClinicContext } from '@/lib/auth-context'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
+function getAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) throw new Error('Missing Supabase service role config')
+  return createAdminClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+}
+
+// GET /api/admin/doctors — list all users grouped by role
 export async function GET() {
   const ctx = await getClinicContext()
   if (!ctx || ctx.user_role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden', code: 'FORBIDDEN' }, { status: 403 })
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const supabase = await createClient()
+  try {
+    const admin = getAdminClient()
+    const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Get doctor profiles joined with auth users via RPC or direct query
-  // For now, query doctor_profiles and return them
-  const { data, error } = await supabase
-    .from('doctor_profiles')
-    .select('id, user_id, specialization, profession, created_at')
-    .order('created_at', { ascending: false })
+    const users = (data.users || []).map((u) => ({
+      id: u.id,
+      email: u.email ?? '',
+      full_name: u.user_metadata?.full_name ?? '',
+      user_role: u.user_metadata?.user_role ?? 'staff',
+      profession: u.user_metadata?.profession ?? null,
+      created_at: u.created_at,
+      last_sign_in: u.last_sign_in_at ?? null,
+      confirmed: !!u.email_confirmed_at,
+    }))
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ data: users }, { status: 200 })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Server error'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
-
-  return NextResponse.json({ data: data ?? [] }, { status: 200 })
 }
 
+// POST /api/admin/doctors — create a new user (doctor or staff)
 export async function POST(request: NextRequest) {
   const ctx = await getClinicContext()
   if (!ctx || ctx.user_role !== 'admin') {
-    return NextResponse.json({ error: 'Solo los administradores pueden crear doctores', code: 'FORBIDDEN' }, { status: 403 })
+    return NextResponse.json({ error: 'Solo administradores pueden crear usuarios' }, { status: 403 })
   }
 
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceRoleKey) {
-    return NextResponse.json(
-      { error: 'Función no disponible: falta la clave de servicio de Supabase', code: 'CONFIG_ERROR' },
-      { status: 500 }
-    )
+  let body: {
+    full_name?: string
+    email?: string
+    password?: string
+    profession?: string
+    user_role?: string
   }
-
-  let body: { full_name?: string; email?: string; password?: string; profession?: string }
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Cuerpo inválido', code: 'INVALID_BODY' }, { status: 400 })
+    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 })
   }
 
-  const { full_name, email, password, profession } = body
+  const { full_name, email, password, profession, user_role = 'doctor' } = body
   if (!full_name || !email || !password) {
-    return NextResponse.json(
-      { error: 'Nombre, correo y contraseña son requeridos', code: 'MISSING_FIELDS' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Nombre, correo y contraseña son requeridos' }, { status: 400 })
   }
 
-  // Use Supabase Admin API to create user
-  const { createClient: createAdminClient } = await import('@supabase/supabase-js')
-  const adminClient = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  try {
+    const admin = getAdminClient()
+    const { data: newUser, error: createError } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name,
+        user_role,
+        profession: profession || null,
+      },
+    })
 
-  const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: {
-      full_name,
-      user_role: 'doctor',
-      profession: profession || null,
-    },
-  })
+    if (createError) {
+      return NextResponse.json({ error: createError.message }, { status: 400 })
+    }
 
-  if (createError) {
-    return NextResponse.json({ error: createError.message }, { status: 400 })
+    return NextResponse.json({
+      data: {
+        id: newUser.user.id,
+        email,
+        full_name,
+        user_role,
+        profession: profession || null,
+      },
+    }, { status: 201 })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Server error'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}
+
+// PATCH /api/admin/doctors — update user metadata
+export async function PATCH(request: NextRequest) {
+  const ctx = await getClinicContext()
+  if (!ctx || ctx.user_role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Create a doctor_profile entry
-  const supabase = await createClient()
-  await supabase.from('doctor_profiles').insert({
-    user_id: newUser.user.id,
-    profession: profession || null,
-    specialization: profession || null,
-  })
+  let body: { id?: string; full_name?: string; profession?: string; user_role?: string }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 })
+  }
 
-  return NextResponse.json({ data: { id: newUser.user.id, email, full_name, profession } }, { status: 201 })
+  const { id, ...updates } = body
+  if (!id) return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
+
+  try {
+    const admin = getAdminClient()
+    const { data: existing } = await admin.auth.admin.getUserById(id)
+    const currentMeta = existing.user?.user_metadata ?? {}
+
+    const { data, error } = await admin.auth.admin.updateUserById(id, {
+      user_metadata: {
+        ...currentMeta,
+        ...(updates.full_name !== undefined && { full_name: updates.full_name }),
+        ...(updates.profession !== undefined && { profession: updates.profession }),
+        ...(updates.user_role !== undefined && { user_role: updates.user_role }),
+      },
+    })
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+    return NextResponse.json({
+      data: {
+        id: data.user.id,
+        email: data.user.email,
+        full_name: data.user.user_metadata?.full_name,
+        user_role: data.user.user_metadata?.user_role,
+        profession: data.user.user_metadata?.profession,
+      },
+    }, { status: 200 })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Server error'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}
+
+// DELETE /api/admin/doctors — delete a user
+export async function DELETE(request: NextRequest) {
+  const ctx = await getClinicContext()
+  if (!ctx || ctx.user_role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const url = new URL(request.url)
+  const id = url.searchParams.get('id')
+  if (!id) return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
+
+  try {
+    const admin = getAdminClient()
+    const { error } = await admin.auth.admin.deleteUser(id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ data: null }, { status: 200 })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Server error'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }

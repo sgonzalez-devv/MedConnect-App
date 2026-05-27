@@ -24,6 +24,7 @@ import { getClinicColors } from "@/lib/theme-utils"
 import { useAuth } from "@/hooks/use-auth"
 import { useClinicContext } from "@/hooks/use-clinic-context"
 import { formatErrorMessage } from "@/lib/error-handling"
+import { sanitizePhone, isValidPhone } from "@/lib/input-utils"
 import { apiClient } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 import { ClinicConfirmDialog } from "@/components/clinic-confirm-dialog"
@@ -39,6 +40,7 @@ export default function ClinicNewPatientPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [birthDate, setBirthDate] = useState<Date | undefined>()
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [newAlergia, setNewAlergia] = useState("")
   const [newCondicion, setNewCondicion] = useState("")
   const [formData, setFormData] = useState({
@@ -77,15 +79,17 @@ export default function ClinicNewPatientPage() {
 
   const validate = () => {
     if (!user) { toast({ title: 'Debes iniciar sesión' }); return false }
-    if (!formData.nombre || !formData.apellido || !formData.email || !formData.telefono || !formData.genero || !birthDate) {
-      toast({ title: 'Por favor completa todos los campos requeridos' }); return false
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      toast({ title: 'El formato del correo electrónico no es válido' }); return false
-    }
-    if (birthDate > new Date()) {
-      toast({ title: 'La fecha de nacimiento debe ser en el pasado' }); return false
-    }
+    const newErrors: Partial<typeof formData> = {}
+    if (!formData.nombre.trim()) newErrors.nombre = "El nombre es requerido"
+    if (!formData.apellido.trim()) newErrors.apellido = "El apellido es requerido"
+    if (!formData.email.trim()) newErrors.email = "El correo es requerido"
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Formato no válido"
+    if (!formData.telefono.trim()) newErrors.telefono = "El teléfono es requerido"
+    else if (!isValidPhone(formData.telefono)) newErrors.telefono = "Mínimo 7 dígitos"
+    if (!formData.genero) newErrors.genero = "El género es requerido"
+    if (!birthDate) { toast({ title: 'La fecha de nacimiento es requerida' }); return false }
+    if (birthDate > new Date()) { toast({ title: 'La fecha debe ser en el pasado' }); return false }
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors as Record<string, string>); return false }
     return true
   }
 
@@ -233,15 +237,16 @@ export default function ClinicNewPatientPage() {
               <h3 className="font-medium text-foreground">Información de Contacto</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="telefono">Teléfono</Label>
+                  <Label htmlFor="telefono">Teléfono *</Label>
                   <Input
                     id="telefono"
                     type="tel"
                     placeholder="+1 809 555 1234"
                     value={formData.telefono}
-                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                    required
+                    onChange={(e) => setFormData({ ...formData, telefono: sanitizePhone(e.target.value) })}
+                    className={errors.telefono ? "border-destructive" : ""}
                   />
+                  {errors.telefono && <p className="text-xs text-destructive">{errors.telefono}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Correo Electrónico</Label>

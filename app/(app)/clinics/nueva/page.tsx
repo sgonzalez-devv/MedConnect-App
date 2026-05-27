@@ -11,35 +11,32 @@ import { ArrowLeft, Building2, Loader2, MapPin, Mail, Phone } from "lucide-react
 import { apiClient } from "@/lib/api-client"
 import { toast } from "sonner"
 import { formatErrorMessage } from "@/lib/error-handling"
+import { sanitizePhone, isValidPhone, isValidEmail } from "@/lib/input-utils"
 
 export default function NewClinicPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    name: "",
-    location: "",
-    email: "",
-    telefono: "",
-  })
+  const [formData, setFormData] = useState({ name: "", location: "", email: "", telefono: "" })
+  const [errors, setErrors] = useState<Partial<typeof formData>>({})
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    const sanitized = name === "telefono" ? sanitizePhone(value) : value
+    setFormData((prev) => ({ ...prev, [name]: sanitized }))
+    setErrors((prev) => ({ ...prev, [name]: undefined }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-
     const { name, location, email, telefono } = formData
-    if (!name || !location || !email || !telefono) {
-      toast.error("Por favor completa todos los campos requeridos")
-      return
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      toast.error("El formato del correo electrónico no es válido")
-      return
-    }
+    const newErrors: Partial<typeof formData> = {}
+    if (!name.trim()) newErrors.name = "El nombre es requerido"
+    if (!location.trim()) newErrors.location = "La dirección es requerida"
+    if (!email.trim()) newErrors.email = "El correo es requerido"
+    else if (!isValidEmail(email)) newErrors.email = "Formato de correo no válido"
+    if (!telefono.trim()) newErrors.telefono = "El teléfono es requerido"
+    else if (!isValidPhone(telefono)) newErrors.telefono = "Número de teléfono no válido"
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return }
 
     setIsLoading(true)
     try {
@@ -145,10 +142,10 @@ export default function NewClinicPage() {
                   placeholder="+1 809 555 1234"
                   value={formData.telefono}
                   onChange={handleChange}
-                  required
-                  className="pl-9"
+                  className={`pl-9 ${errors.telefono ? "border-destructive" : ""}`}
                 />
               </div>
+              {errors.telefono && <p className="text-xs text-destructive">{errors.telefono}</p>}
             </div>
 
             <div className="flex gap-3 pt-2">

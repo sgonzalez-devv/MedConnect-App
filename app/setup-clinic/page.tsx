@@ -17,6 +17,7 @@ import { Building2, MapPin, Mail, Phone, Stethoscope, Loader2, Plus, CheckCircle
 import { apiClient } from "@/lib/api-client"
 import { toast } from "sonner"
 import { formatErrorMessage } from "@/lib/error-handling"
+import { sanitizePhone, isValidPhone, isValidEmail } from "@/lib/input-utils"
 
 const SPECIALTIES = [
   "Medicina General",
@@ -74,6 +75,7 @@ export default function SetupClinicPage() {
       newErrors.email = "Correo no válido"
     }
     if (!formData.telefono.trim()) newErrors.telefono = "El teléfono es requerido"
+    else if (!isValidPhone(formData.telefono)) newErrors.telefono = "Número no válido (mínimo 7 dígitos)"
     if (!formData.specialty) newErrors.specialty = "La especialidad es requerida"
     if (formData.specialty === "custom" && !formData.specialty_custom.trim()) {
       newErrors.specialty_custom = "Especifica la especialidad"
@@ -222,7 +224,7 @@ export default function SetupClinicPage() {
                     type="tel"
                     placeholder="+1 809 555 1234"
                     value={formData.telefono}
-                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, telefono: sanitizePhone(e.target.value) })}
                     className="pl-9"
                   />
                 </div>

@@ -23,6 +23,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { formatErrorMessage } from "@/lib/error-handling"
 import { apiClient } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
+import { sanitizePhone, isValidPhone, isValidEmail } from "@/lib/input-utils"
 
 export default function NewPatientPage() {
   const router = useRouter()
@@ -36,37 +37,26 @@ export default function NewPatientPage() {
     gender: "",
     address: "",
   })
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof formData | "birthDate", string>>>({})
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-
-    if (!user) {
-      toast({ title: 'Debes iniciar sesión para registrar un paciente' })
-      return
-    }
-
-    if (!formData.fullName || !formData.email || !formData.phone || !formData.gender || !birthDate) {
-      toast({ title: 'Por favor completa todos los campos requeridos' })
-      return
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.email)) {
-      toast({ title: 'El formato del correo electrónico no es válido' })
-      return
-    }
-
-    // Validate birth date is in the past
-    if (birthDate > new Date()) {
-      toast({ title: 'La fecha de nacimiento debe ser en el pasado' })
-      return
-    }
+    const newErrors: typeof errors = {}
+    if (!formData.fullName.trim()) newErrors.fullName = "El nombre es requerido"
+    if (!formData.email.trim()) newErrors.email = "El correo es requerido"
+    else if (!isValidEmail(formData.email)) newErrors.email = "Formato de correo no válido"
+    if (!formData.phone.trim()) newErrors.phone = "El teléfono es requerido"
+    else if (!isValidPhone(formData.phone)) newErrors.phone = "Número no válido (mínimo 7 dígitos)"
+    if (!formData.gender) newErrors.gender = "El género es requerido"
+    if (!birthDate) newErrors.birthDate = "La fecha de nacimiento es requerida"
+    else if (birthDate > new Date()) newErrors.birthDate = "Debe ser en el pasado"
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return }
+    if (!user) { toast({ title: 'Debes iniciar sesión' }); return }
 
     setIsLoading(true)
 
     try {
-      const dateOfBirth = `${birthDate.getFullYear()}-${(birthDate.getMonth() + 1).toString().padStart(2, "0")}-${birthDate.getDate().toString().padStart(2, "0")}`
+      const dateOfBirth = `${birthDate!.getFullYear()}-${(birthDate!.getMonth() + 1).toString().padStart(2, "0")}-${birthDate!.getDate().toString().padStart(2, "0")}`
 
       await apiClient.post('/api/patients', {
         full_name: formData.fullName,
@@ -184,15 +174,19 @@ export default function NewPatientPage() {
               <h3 className="font-medium text-foreground">Información de Contacto</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono</Label>
+                  <Label htmlFor="phone">Teléfono *</Label>
                   <Input
                     id="phone"
                     type="tel"
                     placeholder="+1 809 555 1234"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    required
+                    onChange={(e) => {
+                      setFormData({ ...formData, phone: sanitizePhone(e.target.value) })
+                      setErrors((p) => ({ ...p, phone: undefined }))
+                    }}
+                    className={errors.phone ? "border-destructive" : ""}
                   />
+                  {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Correo Electrónico</Label>
