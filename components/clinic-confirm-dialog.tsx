@@ -58,17 +58,17 @@ export function ClinicConfirmDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="flex items-start gap-3 p-4 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-xl">
-            <Building2 className="h-5 w-5 text-teal-600 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 p-4 bg-teal-600 rounded-xl">
+            <Building2 className="h-5 w-5 text-teal-100 shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs text-teal-600 dark:text-teal-400 font-medium uppercase tracking-wider mb-0.5">
+              <p className="text-xs text-teal-200 font-medium uppercase tracking-wider mb-0.5">
                 Clínica seleccionada
               </p>
-              <p className="font-semibold text-foreground">
+              <p className="font-semibold text-white">
                 {selectedClinic?.name ?? "—"}
               </p>
               {selectedClinic?.location && (
-                <p className="text-xs text-muted-foreground mt-0.5">{selectedClinic.location}</p>
+                <p className="text-xs text-teal-200 mt-0.5">{selectedClinic.location}</p>
               )}
             </div>
           </div>

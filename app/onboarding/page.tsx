@@ -19,8 +19,11 @@ import {
 const slides = [
   {
     icon: Stethoscope,
-    iconBg: "bg-teal-100",
-    iconColor: "text-teal-600",
+    iconBg: "bg-teal-600",
+    iconColor: "text-white",
+    accent: "bg-teal-600",
+    featureIconBg: "bg-teal-100 dark:bg-teal-900/50",
+    featureIconColor: "text-teal-700 dark:text-teal-300",
     title: "Bienvenido a MedConnect",
     subtitle: "La plataforma integral para gestión médica moderna",
     features: [
@@ -32,8 +35,11 @@ const slides = [
   },
   {
     icon: Calendar,
-    iconBg: "bg-blue-100",
-    iconColor: "text-blue-600",
+    iconBg: "bg-blue-600",
+    iconColor: "text-white",
+    accent: "bg-blue-600",
+    featureIconBg: "bg-blue-100 dark:bg-blue-900/50",
+    featureIconColor: "text-blue-700 dark:text-blue-300",
     title: "Gestión Clínica Completa",
     subtitle: "Todo lo que necesitas para operar tu consulta eficientemente",
     features: [
@@ -45,8 +51,11 @@ const slides = [
   },
   {
     icon: MessageSquare,
-    iconBg: "bg-green-100",
-    iconColor: "text-green-600",
+    iconBg: "bg-green-600",
+    iconColor: "text-white",
+    accent: "bg-green-600",
+    featureIconBg: "bg-green-100 dark:bg-green-900/50",
+    featureIconColor: "text-green-700 dark:text-green-300",
     title: "Bot de WhatsApp con IA",
     subtitle: "Tus pacientes agendan citas 24/7 sin que levantes el teléfono",
     features: [
@@ -58,8 +67,11 @@ const slides = [
   },
   {
     icon: BarChart2,
-    iconBg: "bg-pink-100",
-    iconColor: "text-pink-600",
+    iconBg: "bg-pink-600",
+    iconColor: "text-white",
+    accent: "bg-pink-600",
+    featureIconBg: "bg-pink-100 dark:bg-pink-900/50",
+    featureIconColor: "text-pink-700 dark:text-pink-300",
     title: "Percentiles Pediátricos",
     subtitle: "Seguimiento de crecimiento basado en estándares OMS para pediatras",
     features: [
@@ -109,13 +121,13 @@ export default function OnboardingPage() {
                 return (
                   <div
                     key={f.label}
-                    className="flex items-start gap-3 p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted/60 transition-colors"
+                    className="flex items-start gap-3 p-4 rounded-xl border border-border bg-card hover:bg-muted/40 transition-colors"
                   >
-                    <div className="p-2 bg-background rounded-lg border border-border shrink-0">
-                      <FIcon className="w-4 h-4 text-teal-600" />
+                    <div className={`p-2 ${slide.featureIconBg} rounded-lg shrink-0`}>
+                      <FIcon className={`w-4 h-4 ${slide.featureIconColor}`} />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-foreground">{f.label}</p>
+                      <p className="text-sm font-semibold text-foreground">{f.label}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{f.desc}</p>
                     </div>
                   </div>

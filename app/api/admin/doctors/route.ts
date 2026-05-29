@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
         full_name,
         user_role,
         profession: profession || null,
+        clinic_id: ctx.clinic_id,
       },
     })
 
@@ -126,6 +127,8 @@ export async function PATCH(request: NextRequest) {
         ...(updates.full_name !== undefined && { full_name: updates.full_name }),
         ...(updates.profession !== undefined && { profession: updates.profession }),
         ...(updates.user_role !== undefined && { user_role: updates.user_role }),
+        // Auto-assign admin's clinic if the doctor has none yet
+        ...(!currentMeta.clinic_id && { clinic_id: ctx.clinic_id }),
       },
     })
 

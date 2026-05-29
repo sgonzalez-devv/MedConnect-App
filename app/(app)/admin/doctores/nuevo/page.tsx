@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -54,10 +54,13 @@ export default function NuevoDoctorPage() {
   })
   const [errors, setErrors] = useState<Partial<typeof formData>>({})
 
-  if (user?.user_role !== 'admin') {
-    router.push('/dashboard')
-    return null
-  }
+  useEffect(() => {
+    if (user && user.user_role !== 'admin') {
+      router.push('/dashboard')
+    }
+  }, [user, router])
+
+  if (user && user.user_role !== 'admin') return null
 
   const validate = () => {
     const newErrors: Partial<typeof formData> = {}

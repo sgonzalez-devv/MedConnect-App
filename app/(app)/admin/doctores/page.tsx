@@ -43,9 +43,9 @@ interface UserRecord {
 }
 
 const roleConfig: Record<string, { label: string; class: string }> = {
-  admin: { label: "Admin", class: "bg-red-50 text-red-700 border-red-200" },
-  doctor: { label: "Doctor", class: "bg-blue-50 text-blue-700 border-blue-200" },
-  staff: { label: "Staff", class: "bg-amber-50 text-amber-700 border-amber-200" },
+  admin: { label: "Admin", class: "bg-red-600 text-white border-transparent" },
+  doctor: { label: "Doctor", class: "bg-blue-600 text-white border-transparent" },
+  staff: { label: "Staff", class: "bg-amber-500 text-white border-transparent" },
 }
 
 function getInitials(name: string) {

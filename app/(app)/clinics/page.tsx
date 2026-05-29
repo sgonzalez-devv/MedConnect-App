@@ -2,12 +2,15 @@
 
 import Link from "next/link"
 import { useClinicContext } from "@/hooks/use-clinic-context"
+import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Building2, ArrowRight, CheckCircle2, Plus } from "lucide-react"
+import { Building2, ArrowRight, CheckCircle2, Plus, Settings } from "lucide-react"
 
 export default function ClinicListPage() {
   const { clinics, currentClinic } = useClinicContext()
+  const { user } = useAuth()
+  const canEdit = user?.user_role === "admin" || user?.user_role === "doctor"
 
   return (
     <div className="space-y-8 p-6">
@@ -89,18 +92,24 @@ export default function ClinicListPage() {
                     <p className="text-foreground">{clinic.telefono}</p>
                   </div>
                 </div>
-                <Link
-                  href={`/clinics/${clinic.id}/dashboard`}
-                  className="block"
-                >
-                  <Button
-                    className="w-full gap-2"
-                    variant={currentClinic?.id === clinic.id ? "default" : "outline"}
-                  >
-                    {currentClinic?.id === clinic.id ? "En esta clínica" : "Ir al Dashboard"}
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
+                <div className="flex gap-2">
+                  <Link href={`/clinics/${clinic.id}/dashboard`} className="flex-1">
+                    <Button
+                      className="w-full gap-2"
+                      variant={currentClinic?.id === clinic.id ? "default" : "outline"}
+                    >
+                      {currentClinic?.id === clinic.id ? "En esta clínica" : "Ir al Dashboard"}
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  {canEdit && (
+                    <Link href={`/clinics/${clinic.id}/configuracion`}>
+                      <Button variant="outline" size="icon" title="Editar clínica">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}

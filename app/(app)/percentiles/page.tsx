@@ -75,6 +75,33 @@ interface PercentileRecord {
   notes: string | null
 }
 
+function getPatientAge(dob: string | null): { years: number; months: number; totalMonths: number } | null {
+  if (!dob) return null
+  const birth = new Date(dob)
+  const now = new Date()
+  const totalMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth())
+  if (totalMonths < 0) return null
+  return { years: Math.floor(totalMonths / 12), months: totalMonths % 12, totalMonths }
+}
+
+type WeightUnit = 'kg' | 'lb'
+type LengthUnit = 'cm' | 'ft'
+type HeadUnit = 'cm' | 'in'
+
+function UnitToggle({ units, value, onChange }: { units: string[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex rounded overflow-hidden border border-input">
+      {units.map((u) => (
+        <button key={u} type="button" onClick={() => onChange(u)}
+          className={cn("px-2 py-0.5 text-xs font-medium transition-colors",
+            value === u ? "bg-teal-600 text-white" : "bg-background text-muted-foreground hover:bg-muted")}>
+          {u}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function PercentilesPage() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
@@ -83,13 +110,52 @@ export default function PercentilesPage() {
   const [loadingRecords, setLoadingRecords] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg')
+  const [heightUnit, setHeightUnit] = useState<LengthUnit>('cm')
+  const [headUnit, setHeadUnit] = useState<HeadUnit>('cm')
   const [formData, setFormData] = useState({
-    weight_kg: "",
-    height_cm: "",
-    head_circumference_cm: "",
+    weight: "",
+    height: "",
+    head_circumference: "",
     age_months: "",
     notes: "",
   })
+
+  const handleWeightUnitChange = (unit: string) => {
+    const u = unit as WeightUnit
+    setFormData(prev => {
+      if (!prev.weight) return prev
+      const val = parseFloat(prev.weight)
+      if (isNaN(val)) return prev
+      const converted = u === 'lb' ? +(val * 2.20462).toFixed(2) : +(val * 0.453592).toFixed(3)
+      return { ...prev, weight: String(converted) }
+    })
+    setWeightUnit(u)
+  }
+
+  const handleHeightUnitChange = (unit: string) => {
+    const u = unit as LengthUnit
+    setFormData(prev => {
+      if (!prev.height) return prev
+      const val = parseFloat(prev.height)
+      if (isNaN(val)) return prev
+      const converted = u === 'ft' ? +(val * 0.0328084).toFixed(3) : +(val * 30.48).toFixed(1)
+      return { ...prev, height: String(converted) }
+    })
+    setHeightUnit(u)
+  }
+
+  const handleHeadUnitChange = (unit: string) => {
+    const u = unit as HeadUnit
+    setFormData(prev => {
+      if (!prev.head_circumference) return prev
+      const val = parseFloat(prev.head_circumference)
+      if (isNaN(val)) return prev
+      const converted = u === 'in' ? +(val * 0.393701).toFixed(2) : +(val * 2.54).toFixed(1)
+      return { ...prev, head_circumference: String(converted) }
+    })
+    setHeadUnit(u)
+  }
 
   const fetchPatients = useCallback(async () => {
     try {
@@ -120,17 +186,21 @@ export default function PercentilesPage() {
     if (!selectedPatient) return
     setSaving(true)
     try {
+      const rawWeight = formData.weight ? parseFloat(formData.weight) : null
+      const rawHeight = formData.height ? parseFloat(formData.height) : null
+      const rawHead = formData.head_circumference ? parseFloat(formData.head_circumference) : null
       await apiClient.post('/api/percentiles', {
         patient_id: selectedPatient.id,
-        weight_kg: formData.weight_kg ? parseFloat(formData.weight_kg) : null,
-        height_cm: formData.height_cm ? parseFloat(formData.height_cm) : null,
-        head_circumference_cm: formData.head_circumference_cm ? parseFloat(formData.head_circumference_cm) : null,
-        age_months: formData.age_months ? parseInt(formData.age_months) : null,
+        weight_kg: rawWeight != null ? (weightUnit === 'lb' ? +(rawWeight * 0.453592).toFixed(3) : rawWeight) : null,
+        height_cm: rawHeight != null ? (heightUnit === 'ft' ? +(rawHeight * 30.48).toFixed(1) : rawHeight) : null,
+        head_circumference_cm: rawHead != null ? (headUnit === 'in' ? +(rawHead * 2.54).toFixed(1) : rawHead) : null,
+        age_months: patientAge?.totalMonths ?? (formData.age_months ? parseInt(formData.age_months) : null),
         notes: formData.notes || null,
       })
       toast.success("Registro guardado")
       setDialogOpen(false)
-      setFormData({ weight_kg: "", height_cm: "", head_circumference_cm: "", age_months: "", notes: "" })
+      setFormData({ weight: "", height: "", head_circumference: "", age_months: "", notes: "" })
+      setWeightUnit('kg'); setHeightUnit('cm'); setHeadUnit('cm')
       fetchRecords(selectedPatient.id)
     } catch (error) {
       toast.error(formatErrorMessage(error, "Guardar registro"))
@@ -161,6 +231,7 @@ export default function PercentilesPage() {
   }
 
   const trend = selectedPatient ? getTrend(records, selectedPatient.gender || 'male') : null
+  const patientAge = selectedPatient ? getPatientAge(selectedPatient.date_of_birth) : null
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
@@ -173,7 +244,10 @@ export default function PercentilesPage() {
           <p className="text-muted-foreground">Monitoreo de crecimiento según estándares OMS</p>
         </div>
         {selectedPatient && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open)
+              if (!open) { setWeightUnit('kg'); setHeightUnit('cm'); setHeadUnit('cm') }
+            }}>
             <DialogTrigger asChild>
               <Button className="bg-teal-600 hover:bg-teal-700 text-white">
                 <Plus className="h-4 w-4 mr-2" />Nuevo Registro
@@ -185,31 +259,56 @@ export default function PercentilesPage() {
                 <DialogDescription>Paciente: {selectedPatient.full_name}</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Edad (meses) *</Label>
-                  <Input type="number" min="0" max="216" placeholder="Ej. 12"
-                    value={formData.age_months}
-                    onChange={(e) => setFormData({ ...formData, age_months: e.target.value })} />
-                </div>
+                {patientAge ? (
+                  <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
+                    <span className="text-muted-foreground">Edad:</span>
+                    <span className="font-medium">
+                      {patientAge.years > 0 ? `${patientAge.years} año${patientAge.years !== 1 ? 's' : ''}` : ''}
+                      {patientAge.years > 0 && patientAge.months > 0 ? ' y ' : ''}
+                      {patientAge.months > 0 ? `${patientAge.months} mes${patientAge.months !== 1 ? 'es' : ''}` : ''}
+                      {patientAge.totalMonths === 0 ? 'menos de 1 mes' : ''}
+                    </span>
+                    <span className="text-muted-foreground">({patientAge.totalMonths} meses)</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Edad (meses) *</Label>
+                    <Input type="number" min="0" max="216" placeholder="Ej. 12"
+                      value={formData.age_months}
+                      onChange={(e) => setFormData({ ...formData, age_months: e.target.value })} />
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Peso (kg)</Label>
-                    <Input type="number" step="0.1" min="0" placeholder="Ej. 8.5"
-                      value={formData.weight_kg}
-                      onChange={(e) => setFormData({ ...formData, weight_kg: e.target.value })} />
+                    <div className="flex items-center justify-between">
+                      <Label>Peso</Label>
+                      <UnitToggle units={['kg', 'lb']} value={weightUnit} onChange={handleWeightUnitChange} />
+                    </div>
+                    <Input type="number" step="0.1" min="0"
+                      placeholder={weightUnit === 'kg' ? "Ej. 8.5" : "Ej. 18.7"}
+                      value={formData.weight}
+                      onChange={(e) => setFormData({ ...formData, weight: e.target.value })} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Talla (cm)</Label>
-                    <Input type="number" step="0.1" min="0" placeholder="Ej. 72"
-                      value={formData.height_cm}
-                      onChange={(e) => setFormData({ ...formData, height_cm: e.target.value })} />
+                    <div className="flex items-center justify-between">
+                      <Label>Talla</Label>
+                      <UnitToggle units={['cm', 'ft']} value={heightUnit} onChange={handleHeightUnitChange} />
+                    </div>
+                    <Input type="number" step="0.1" min="0"
+                      placeholder={heightUnit === 'cm' ? "Ej. 72" : "Ej. 2.36"}
+                      value={formData.height}
+                      onChange={(e) => setFormData({ ...formData, height: e.target.value })} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Perímetro Cefálico (cm)</Label>
-                  <Input type="number" step="0.1" min="0" placeholder="Ej. 45"
-                    value={formData.head_circumference_cm}
-                    onChange={(e) => setFormData({ ...formData, head_circumference_cm: e.target.value })} />
+                  <div className="flex items-center justify-between">
+                    <Label>Perímetro Cefálico</Label>
+                    <UnitToggle units={['cm', 'in']} value={headUnit} onChange={handleHeadUnitChange} />
+                  </div>
+                  <Input type="number" step="0.1" min="0"
+                    placeholder={headUnit === 'cm' ? "Ej. 45" : "Ej. 17.7"}
+                    value={formData.head_circumference}
+                    onChange={(e) => setFormData({ ...formData, head_circumference: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Notas</Label>
@@ -220,7 +319,7 @@ export default function PercentilesPage() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleSaveRecord} disabled={saving || !formData.age_months} className="bg-teal-600 hover:bg-teal-700 text-white">
+                <Button onClick={handleSaveRecord} disabled={saving || (!patientAge && !formData.age_months)} className="bg-teal-600 hover:bg-teal-700 text-white">
                   {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando…</> : "Guardar Registro"}
                 </Button>
               </DialogFooter>

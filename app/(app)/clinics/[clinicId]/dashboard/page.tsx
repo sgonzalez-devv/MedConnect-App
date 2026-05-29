@@ -22,6 +22,7 @@ import {
   ArrowRight,
   AlertCircle,
   TrendingUp,
+  Settings,
 } from "lucide-react"
 import {
   getClinicNotifications,
@@ -183,6 +184,18 @@ export default function ClinicDashboardPage() {
               </TooltipTrigger>
               <TooltipContent>Agendar una nueva cita para un paciente</TooltipContent>
             </Tooltip>
+            {(user?.user_role === "admin" || user?.user_role === "doctor") && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" asChild>
+                    <Link href={`/clinics/${clinicId}/configuracion`}>
+                      <Settings className="w-4 h-4" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Editar información de la clínica</TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </div>
 
